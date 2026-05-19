@@ -244,7 +244,10 @@ canvas#cam-canvas{display:none}
         <label class="btn-p" for="file-input" style="cursor:pointer;padding:11px 20px;border-radius:8px">Upload Receipt Photo</label>
       </div>
       <div id="cam-controls">
-        <button id="btn-capture" onclick="doCapture()">&#9679;</button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+          <button id="btn-capture" onclick="doCapture()">&#9679;</button>
+          <span style="color:rgba(255,255,255,.5);font-size:10px;letter-spacing:1px">TAP TO CAPTURE</span>
+        </div>
         <label class="btn-upload-lbl" for="file-input">Upload</label>
       </div>
       <input type="file" id="file-input" accept="image/*" capture="environment" class="h">
@@ -398,21 +401,30 @@ async function runOCR(src, onProg){
 
 // ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
 function parseReceipt(txt){
-  const skip=/total|subtotal|tax|change|cash|credit|debit|visa|master|balance|amount|tender|discount|saving|coupon|member|point|thank|welcome|store|receipt|trans|invoice|order|tel:|phone|address|date:|time:|ref#/i;
+  const skipLine=l=>/balance|total|subtotal|tax|change|cash|credit|debit|visa|master|amount|tender|discount|saving|coupon|member|point|thank|welcome|receipt|trans|invoice|order|tel:|phone|address|date:|time:|ref#|auth|ticket|register|cashier/i.test(l)||/^(deli|produce|meat|bakery|seafood|dairy|frozen|beverages?|snacks?)$/i.test(l);
+  const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
   const items=[];
-  txt.split('\n').forEach(raw=>{
-    const line=raw.trim();
-    if(!line||line.length<4) return;
-    if(skip.test(line)) return;
-    // Match: optional leading qty, name, then price at end (optional trailing T/F for tax flag)
-    const m=line.match(/^(?:\d+\s+)?(.+?)\s+\$?(\d{1,4}[.,]\d{2})\s*[A-Z]?\s*$/);
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(line.length<2||skipLine(line)) continue;
+    if(/^[A-Z\s]{2,20}$/.test(line)&&!/\d/.test(line)) continue; // section headers
+    const next=lines[i+1]||'';
+    // Multi-line by-weight: next line is "X.XX lb @ RATE/ lb  TOTAL"
+    const lbM=next.match(/[\d.]+\s*lb\s*@\s*\$?(\d+\.?\d*)\s*\/\s*(?:2\s*)?lb\b/i);
+    const kgM=next.match(/[\d.]+\s*kg\s*@\s*\$?(\d+\.?\d*)\s*\/\s*kg\b/i);
+    const bundle=next.match(/\d+\s*@\s*\d+\s+for\b/i);
+    if(lbM){ const r=parseFloat(lbM[1]); if(r>0) items.push({name:line.replace(/[*F]\s*$/,'').trim(),price:r,unit:'lb',linkId:null,linkName:null}); i++; continue }
+    if(kgM){ const r=parseFloat(kgM[1]); if(r>0) items.push({name:line.replace(/[*F]\s*$/,'').trim(),price:r,unit:'kg',linkId:null,linkName:null}); i++; continue }
+    if(bundle){ i++; continue } // bundle deals — ambiguous per-unit price, skip
+    // Single-line item: NAME  PRICE [F/T]
+    const m=line.match(/^(.+?)\s{2,}\$?(\d{1,4}[.,]\d{2})\s*[A-Z]?\s*$/);
     if(m){
-      const name=m[1].replace(/\*+/g,'').trim();
+      const name=m[1].replace(/[*]+/g,'').trim();
       const price=parseFloat(m[2].replace(',','.'));
-      if(name.length>=2&&price>0&&price<5000)
+      if(name.length>=2&&price>0&&price<5000&&!skipLine(name)&&!/^\d+(\.\d+)?$/.test(name))
         items.push({name,price,unit:'unit',linkId:null,linkName:null});
     }
-  });
+  }
   return items;
 }
 
@@ -673,8 +685,15 @@ async function goScan(){
   }
 }
 async function doCapture(){
-  const img=grabFrame(); stopCamera();
-  switchToReview(img);
+  try{
+    const v=document.getElementById('cam-video');
+    if(!v.srcObject){ alert('Camera not ready.'); return }
+    if(v.readyState<2) await new Promise(r=>v.addEventListener('canplay',r,{once:true}));
+    const img=grabFrame();
+    if(!img||img.length<1000){ alert('Capture failed — try the Upload button.'); return }
+    stopCamera();
+    switchToReview(img);
+  }catch(e){ alert('Could not capture: '+e.message+'\nTry the Upload button.') }
 }
 async function switchToReview(img){
   document.getElementById('step-cam').classList.add('off');
