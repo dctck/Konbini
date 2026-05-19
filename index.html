@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>KONBI</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Jost:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#E8E8E8}
+body{font-family:'Jost',sans-serif;color:#141414}
+:root{
+  --g:#00873C;--gd:#005C28;--gl:#E5F4EC;
+  --b:#0065BD;--bl:#E5EEF8;
+  --r:#D0021B;
+  --bg:#E8E8E8;--sf:#FFF;--bd:#DCDCDC;
+  --t1:#141414;--t2:#555;--t3:#999;
+  --rr:10px
+}
+#app{max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg)}
+
+/* TOPBAR */
+#topbar{background:var(--gd);flex-shrink:0;z-index:10;position:relative}
+#tb-stripe{height:5px;background:repeating-linear-gradient(90deg,var(--g) 0,var(--g) 33.33%,var(--b) 33.33%,var(--b) 66.66%,#FFB800 66.66%,#FFB800 100%)}
+#tb-content{display:flex;align-items:center;padding:0 10px;height:50px}
+#tb-title{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:4px;color:#fff;flex:1;text-align:center}
+.tb-btn{background:none;border:none;color:rgba(255,255,255,.8);font-size:22px;padding:6px 8px;cursor:pointer;border-radius:6px;line-height:1;transition:background .15s}
+.tb-btn:hover{background:rgba(255,255,255,.12)}
+#tb-nav{display:flex;gap:2px}
+#tb-back.hidden,#tb-nav.hidden{display:none}
+
+/* SCREENS */
+.screen{display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0}
+.screen.active{display:flex}
+
+/* INPUT AREA */
+.input-wrap{padding:11px 12px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0;position:relative;z-index:5}
+.main-input{width:100%;border:1.5px solid var(--bd);border-radius:var(--rr);padding:9px 13px;font-family:'Jost',sans-serif;font-size:15px;color:var(--t1);outline:none;background:#FAFAFA;transition:border-color .15s}
+.main-input:focus{border-color:var(--g);background:#fff}
+
+/* AUTOCOMPLETE */
+#autocomplete{position:absolute;left:12px;right:12px;top:calc(100% - 1px);background:var(--sf);border:1px solid var(--bd);border-top:none;border-radius:0 0 var(--rr) var(--rr);z-index:20;box-shadow:0 4px 16px rgba(0,0,0,.1);overflow:hidden}
+.ac-row{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;cursor:pointer;font-size:14px;border-bottom:1px solid #F2F2F2;transition:background .1s}
+.ac-row:last-child{border-bottom:none}
+.ac-row:hover,.ac-row:active{background:var(--gl)}
+.ac-price{font-family:'Space Mono',monospace;font-size:11px;color:var(--g)}
+.ac-add{color:var(--b)}
+
+/* VIEW TABS */
+.vtabs{display:flex;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
+.vtab{flex:1;padding:8px 4px;border:none;background:none;font-family:'Jost',sans-serif;font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);cursor:pointer;border-bottom:3px solid transparent;transition:all .15s}
+.vtab.active{color:var(--g);border-bottom-color:var(--g)}
+
+/* SCROLL */
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* LIST ROWS */
+.list-row{display:flex;align-items:center;padding:11px 13px 11px 11px;background:var(--sf);border-bottom:1px solid #F2F2F2;gap:9px;transition:opacity .2s}
+.list-row.done{opacity:.4}
+.chkbox{width:22px;height:22px;border:2px solid var(--bd);border-radius:4px;flex-shrink:0;position:relative;cursor:pointer;transition:all .15s}
+.chkbox.on{background:var(--g);border-color:var(--g)}
+.chkbox.on::after{content:'';position:absolute;left:4px;top:1px;width:9px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg)}
+.row-body{flex:1;min-width:0;cursor:pointer}
+.row-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-sub{font-family:'Space Mono',monospace;font-size:10px;color:var(--g);margin-top:2px}
+.row-sub.nd{color:var(--t3)}
+.row-del{background:none;border:none;font-size:18px;color:var(--t3);cursor:pointer;padding:3px 6px;border-radius:4px;transition:color .1s;flex-shrink:0}
+.row-del:hover{color:var(--r)}
+
+/* STORE GROUP */
+.store-grp{margin-bottom:2px}
+.grp-hdr{padding:7px 13px 5px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--g);background:var(--bg);border-bottom:1px solid var(--bd)}
+.grp-hdr.nd-hdr{color:var(--t3)}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 24px;color:var(--t3);font-size:13px;line-height:1.7}
+
+/* ===== SCAN SCREEN ===== */
+.scan-step{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.scan-step.off{display:none}
+
+/* Camera step */
+#cam-wrap{flex:1;position:relative;background:#000;overflow:hidden}
+#cam-video{width:100%;height:100%;object-fit:cover}
+#cam-guide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+#guide-box{width:74%;height:80%;position:relative;border:1.5px solid rgba(255,255,255,.25)}
+.gc{position:absolute;width:18px;height:18px;border-color:#fff;border-style:solid}
+.gc.tl{top:-1px;left:-1px;border-width:3px 0 0 3px}
+.gc.tr{top:-1px;right:-1px;border-width:3px 3px 0 0}
+.gc.bl{bottom:-1px;left:-1px;border-width:0 0 3px 3px}
+.gc.br{bottom:-1px;right:-1px;border-width:0 3px 3px 0}
+#cam-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.5px;white-space:nowrap}
+#cam-controls{padding:18px 20px;display:flex;align-items:center;justify-content:center;gap:20px;background:#000;flex-shrink:0}
+#btn-capture{width:66px;height:66px;border-radius:50%;border:3px solid #fff;background:var(--g);color:#fff;font-size:26px;cursor:pointer;transition:transform .1s,background .1s;display:flex;align-items:center;justify-content:center}
+#btn-capture:active{transform:scale(.9);background:var(--gd)}
+.btn-upload-lbl{color:rgba(255,255,255,.6);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:7px 13px;border:1px solid rgba(255,255,255,.25);border-radius:7px;transition:border-color .15s}
+.btn-upload-lbl:hover{border-color:rgba(255,255,255,.5)}
+#cam-fallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#111;color:rgba(255,255,255,.6);font-size:13px}
+
+/* Review step */
+#review-thumb{height:90px;flex-shrink:0;background:#111;overflow:hidden}
+#review-thumb img{width:100%;height:100%;object-fit:contain}
+#ocr-prog{padding:10px 13px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
+#ocr-prog-txt{font-size:12px;color:var(--t2);margin-bottom:5px}
+#ocr-track{height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
+#ocr-bar{height:100%;background:var(--g);transition:width .2s;width:0}
+#store-row{display:flex;gap:8px;padding:9px 11px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0;align-items:center}
+#store-sel{flex:1;border:1.5px solid var(--bd);border-radius:8px;padding:8px 10px;font-family:'Jost',sans-serif;font-size:14px;color:var(--t1);background:#FAFAFA;outline:none}
+#store-sel:focus{border-color:var(--g)}
+
+/* Scan items list */
+#scan-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.scan-hdr{display:flex;justify-content:space-between;align-items:center;padding:7px 13px;font-size:11px;color:var(--t2);background:#F5F5F5;border-bottom:1px solid var(--bd);flex-shrink:0}
+.scan-item{background:var(--sf);border-bottom:1px solid #F0F0F0;padding:9px 11px}
+.si-top{display:flex;gap:7px;align-items:center;margin-bottom:7px}
+.si-name{flex:1;border:1px solid var(--bd);border-radius:7px;padding:7px 9px;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;color:var(--t1);outline:none;background:#FAFAFA}
+.si-name:focus{border-color:var(--g);background:#fff}
+.si-del{background:none;border:none;font-size:17px;color:var(--t3);cursor:pointer;padding:3px 5px;flex-shrink:0}
+.si-bot{display:flex;gap:7px;align-items:center}
+.price-grp{display:flex;align-items:center;border:1px solid var(--bd);border-radius:7px;overflow:hidden;background:#FAFAFA}
+.price-pfx{padding:0 5px 0 8px;color:var(--t2);font-family:'Space Mono',monospace;font-size:12px}
+.si-price{width:56px;border:none;padding:7px 3px;font-family:'Space Mono',monospace;font-size:12px;color:var(--t1);outline:none;background:transparent}
+.si-unit{border:none;border-left:1px solid var(--bd);padding:7px 5px;font-family:'Jost',sans-serif;font-size:11px;color:var(--t2);background:transparent;outline:none}
+.btn-link{flex:1;border:1.5px dashed var(--bd);border-radius:7px;padding:7px 9px;font-family:'Jost',sans-serif;font-size:11px;color:var(--t3);cursor:pointer;background:none;text-align:left;transition:all .15s;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.btn-link:hover{border-color:var(--b);color:var(--b)}
+.btn-link.linked{border-color:var(--g);border-style:solid;color:var(--g)}
+#scan-actions{display:flex;gap:9px;padding:11px 12px;background:var(--sf);border-top:1px solid var(--bd);flex-shrink:0}
+
+/* ALL ITEMS SCREEN */
+.search-wrap{padding:11px 12px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
+.item-card{background:var(--sf);border-bottom:1px solid #F0F0F0;overflow:hidden}
+.ic-main{display:flex;align-items:center;padding:12px 13px;cursor:pointer;gap:10px;transition:background .1s}
+.ic-main:hover,.ic-main:active{background:#FAFAFA}
+.ic-name{flex:1;font-size:14px;font-weight:500}
+.ic-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ptag{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--g)}
+.ptag .pu{font-weight:400;font-size:10px;color:var(--t2)}
+.ic-store{font-size:10px;color:var(--t2)}
+.ic-arrow{font-size:13px;color:var(--t3);transition:transform .2s}
+.item-card.open .ic-arrow{transform:rotate(180deg)}
+.ic-prices{max-height:0;overflow:hidden;transition:max-height .25s ease;border-top:0px solid var(--bd)}
+.item-card.open .ic-prices{max-height:400px;border-top-width:1px}
+.pr-row{display:flex;align-items:center;padding:8px 13px 8px 28px;gap:7px;border-bottom:1px solid #F7F7F7;font-size:12px}
+.pr-row:last-child{border-bottom:none}
+.pr-row.best{background:var(--gl)}
+.pr-rank{width:14px;font-size:10px;color:var(--t3);flex-shrink:0}
+.pr-row.best .pr-rank{color:var(--g)}
+.pr-store{flex:1;color:var(--t2)}
+.pr-val{font-family:'Space Mono',monospace;font-size:11px;color:var(--t1)}
+.pr-row.best .pr-val{color:var(--g);font-weight:700}
+
+/* BUTTONS */
+.btn-p{flex:1;background:var(--g);color:#fff;border:none;border-radius:8px;padding:11px 14px;font-family:'Jost',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.btn-p:hover{background:var(--gd)}
+.btn-p.fw{width:100%;flex:none}
+.btn-s{flex:1;background:var(--sf);color:var(--t1);border:1.5px solid var(--bd);border-radius:8px;padding:11px 14px;font-family:'Jost',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:border-color .15s}
+.btn-s:hover{border-color:var(--t2)}
+.btn-xs{background:none;border:1.5px solid var(--bd);border-radius:7px;padding:7px 11px;font-family:'Jost',sans-serif;font-size:12px;color:var(--t2);cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn-xs:hover{border-color:var(--g);color:var(--g)}
+.btn-txt{background:none;border:none;color:var(--b);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:2px 0}
+
+/* BACKDROP */
+#backdrop{position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:49;opacity:0;pointer-events:none;transition:opacity .25s}
+#backdrop.on{opacity:1;pointer-events:all}
+
+/* LINK DRAWER */
+#link-drawer{position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;background:var(--sf);border-radius:16px 16px 0 0;z-index:50;transform:translateY(100%);transition:transform .3s cubic-bezier(.25,.8,.25,1);display:flex;flex-direction:column;max-height:72vh}
+#link-drawer.on{transform:translateY(0)}
+.drw-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:11px auto;flex-shrink:0}
+.drw-hdr{padding:10px 15px 12px;display:flex;gap:8px;align-items:baseline;flex-shrink:0;border-bottom:1px solid var(--bd)}
+.drw-hdr b{font-size:14px;font-weight:600}
+#link-scanned{font-size:12px;color:var(--t2);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#link-input{margin:9px 12px;border:1.5px solid var(--bd);border-radius:8px;padding:8px 11px;font-family:'Jost',sans-serif;font-size:13px;color:var(--t1);outline:none;flex-shrink:0}
+#link-input:focus{border-color:var(--g)}
+#link-list{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.link-row{display:flex;flex-direction:column;padding:10px 15px;cursor:pointer;border-bottom:1px solid #F5F5F5;transition:background .1s}
+.link-row:hover,.link-row:active{background:var(--gl)}
+.link-row span:first-child{font-size:13px;font-weight:500}
+.link-aliases{font-size:10px;color:var(--t3);margin-top:2px}
+.link-muted{padding:14px;text-align:center;color:var(--t3);font-size:12px}
+#btn-link-create{margin:9px 12px;width:calc(100% - 24px);flex:none;flex-shrink:0}
+
+/* STORE MODAL */
+#store-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);width:min(320px,88vw);background:var(--sf);border-radius:14px;padding:18px;z-index:50;opacity:0;pointer-events:none;transition:transform .2s,opacity .2s;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+#store-modal.on{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:all}
+.modal-ttl{font-size:15px;font-weight:600;margin-bottom:13px}
+.modal-inp{width:100%;border:1.5px solid var(--bd);border-radius:8px;padding:9px 11px;font-family:'Jost',sans-serif;font-size:14px;color:var(--t1);outline:none;margin-bottom:13px;background:#FAFAFA}
+.modal-inp:focus{border-color:var(--g);background:#fff}
+.modal-btns{display:flex;gap:9px}
+
+/* HIDDEN / UTILS */
+.h{display:none!important}
+.nd-txt{color:var(--t3)}
+canvas#cam-canvas{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="tb-stripe"></div>
+    <div id="tb-content">
+      <button id="tb-back" class="tb-btn hidden" onclick="goBack()">&#8592;</button>
+      <div id="tb-title">KONBI</div>
+      <div id="tb-nav">
+        <button id="btn-scan" class="tb-btn" title="Scan receipt" onclick="goScan()">&#9635;</button>
+        <button id="btn-items" class="tb-btn" title="All items" onclick="goItems()">&#8801;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: LIST -->
+  <div id="screen-list" class="screen active">
+    <div class="input-wrap">
+      <input id="item-input" class="main-input" type="text" placeholder="Search or add item&#8230;" autocomplete="off">
+      <div id="autocomplete" class="h"></div>
+    </div>
+    <div class="vtabs">
+      <button class="vtab active" data-v="list">List</button>
+      <button class="vtab" data-v="store">By Store</button>
+    </div>
+    <div id="list-body" class="scroll"></div>
+  </div>
+
+  <!-- SCREEN: SCAN -->
+  <div id="screen-scan" class="screen">
+    <!-- Step 1: Camera -->
+    <div id="step-cam" class="scan-step">
+      <div id="cam-wrap">
+        <video id="cam-video" autoplay playsinline muted></video>
+        <canvas id="cam-canvas"></canvas>
+        <div id="cam-guide">
+          <div id="guide-box">
+            <div class="gc tl"></div><div class="gc tr"></div>
+            <div class="gc bl"></div><div class="gc br"></div>
+          </div>
+        </div>
+        <div id="cam-hint">Align receipt within frame</div>
+      </div>
+      <div id="cam-fallback" class="h">
+        <p>Camera unavailable</p>
+        <label class="btn-p" for="file-input" style="cursor:pointer;padding:11px 20px;border-radius:8px">Upload Receipt Photo</label>
+      </div>
+      <div id="cam-controls">
+        <button id="btn-capture" onclick="doCapture()">&#9679;</button>
+        <label class="btn-upload-lbl" for="file-input">Upload</label>
+      </div>
+      <input type="file" id="file-input" accept="image/*" capture="environment" class="h">
+    </div>
+
+    <!-- Step 2: Review -->
+    <div id="step-review" class="scan-step off">
+      <div id="review-thumb"><img id="review-img" alt="receipt"></div>
+      <div id="ocr-prog">
+        <div id="ocr-prog-txt">Processing&#8230;</div>
+        <div id="ocr-track"><div id="ocr-bar"></div></div>
+      </div>
+      <div id="store-row">
+        <select id="store-sel"><option value="">Select store&#8230;</option></select>
+        <button class="btn-xs" onclick="openStoreModal()">+ New</button>
+      </div>
+      <div id="scan-list" class="scroll"></div>
+      <div id="scan-actions">
+        <button class="btn-s" onclick="goScan()">Rescan</button>
+        <button class="btn-p" onclick="doSave()">Save All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN: ALL ITEMS -->
+  <div id="screen-items" class="screen">
+    <div class="search-wrap">
+      <input id="items-search" class="main-input" type="text" placeholder="Search items&#8230;" autocomplete="off">
+    </div>
+    <div id="items-body" class="scroll"></div>
+  </div>
+
+  <!-- BACKDROP -->
+  <div id="backdrop" onclick="closeAll()"></div>
+
+  <!-- LINK DRAWER -->
+  <div id="link-drawer">
+    <div class="drw-handle"></div>
+    <div class="drw-hdr">
+      <b>Link to item</b>
+      <span id="link-scanned"></span>
+    </div>
+    <input id="link-input" type="text" placeholder="Search saved items&#8230;" autocomplete="off">
+    <div id="link-list"></div>
+    <button id="btn-link-create" class="btn-p fw" onclick="doCreateLink()">+ Create &amp; link as new item</button>
+  </div>
+
+  <!-- STORE MODAL -->
+  <div id="store-modal">
+    <div class="modal-ttl">New Store</div>
+    <input id="store-inp" class="modal-inp" type="text" placeholder="e.g. Trader Joe&#8217;s">
+    <div class="modal-btns">
+      <button class="btn-s" onclick="closeStoreModal()">Cancel</button>
+      <button class="btn-p" onclick="doAddStore()">Add</button>
+    </div>
+  </div>
+
+</div>
+<script>
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+const KEY = 'konbi_v1';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+const db = {
+  get(){ try{ return JSON.parse(localStorage.getItem(KEY)) || db.empty() }catch{ return db.empty() } },
+  set(d){ localStorage.setItem(KEY, JSON.stringify(d)) },
+  empty(){ return {stores:[],items:[],prices:[],list:[]} }
+};
+
+// Stores
+function addStore(name){
+  const d=db.get(), s={id:uid(),name:name.trim()};
+  d.stores.push(s); db.set(d); return s;
+}
+function getStores(){ return db.get().stores }
+function getStore(id){ return db.get().stores.find(s=>s.id===id) }
+
+// Items
+function addItem(name, aliases=[]){
+  const d=db.get(), it={id:uid(),name:name.trim(),aliases};
+  d.items.push(it); db.set(d); return it;
+}
+function getItems(){ return db.get().items.slice().sort((a,b)=>a.name.localeCompare(b.name)) }
+function addAlias(itemId, alias){
+  const d=db.get(), it=d.items.find(i=>i.id===itemId);
+  if(it){ if(!it.aliases) it.aliases=[]; if(!it.aliases.includes(alias)) it.aliases.push(alias); db.set(d) }
+}
+function searchItems(q){
+  if(!q) return getItems();
+  const lq=q.toLowerCase();
+  return db.get().items.filter(i=>
+    i.name.toLowerCase().includes(lq) ||
+    (i.aliases||[]).some(a=>a.toLowerCase().includes(lq))
+  ).sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+// Prices
+function upsertPrice(itemId, storeId, price, unit){
+  const d=db.get();
+  const ex=d.prices.find(p=>p.itemId===itemId&&p.storeId===storeId);
+  if(ex){ ex.price=price; ex.unit=unit; ex.date=Date.now() }
+  else d.prices.push({id:uid(),itemId,storeId,price,unit,date:Date.now()});
+  db.set(d);
+}
+function pricesFor(itemId){
+  const d=db.get();
+  return d.prices.filter(p=>p.itemId===itemId)
+    .sort((a,b)=>a.price-b.price)
+    .map(p=>({...p, storeName:(getStore(p.storeId)||{name:'Unknown'}).name}));
+}
+function cheapest(itemId){ return pricesFor(itemId)[0]||null }
+
+// List
+function addToList(itemId){
+  const d=db.get();
+  if(!d.list.find(l=>l.itemId===itemId)) d.list.push({id:uid(),itemId,done:false});
+  db.set(d);
+}
+function toggleDone(id){
+  const d=db.get(), l=d.list.find(x=>x.id===id);
+  if(l){ l.done=!l.done; db.set(d) }
+}
+function removeFromList(id){ const d=db.get(); d.list=d.list.filter(l=>l.id!==id); db.set(d) }
+function getList(){
+  const d=db.get();
+  return d.list.map(l=>({...l, item:d.items.find(i=>i.id===l.itemId)}));
+}
+
+// ─── CAMERA / OCR ─────────────────────────────────────────────────────────────
+let camStream=null;
+async function startCamera(){
+  try{
+    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
+    const v=document.getElementById('cam-video');
+    v.srcObject=camStream; return true;
+  }catch(e){ return false }
+}
+function stopCamera(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null } }
+function grabFrame(){
+  const v=document.getElementById('cam-video');
+  const c=document.getElementById('cam-canvas');
+  c.width=v.videoWidth||1280; c.height=v.videoHeight||720;
+  c.getContext('2d').drawImage(v,0,0);
+  return c.toDataURL('image/jpeg',.92);
+}
+async function runOCR(src, onProg){
+  const res=await Tesseract.recognize(src,'eng',{
+    logger:m=>{ if(m.status==='recognizing text'&&onProg) onProg(Math.round(m.progress*100)) }
+  });
+  return res.data.text;
+}
+
+// ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
+function parseReceipt(txt){
+  const skip=/total|subtotal|tax|change|cash|credit|debit|visa|master|balance|amount|tender|discount|saving|coupon|member|point|thank|welcome|store|receipt|trans|invoice|order|tel:|phone|address|date:|time:|ref#/i;
+  const items=[];
+  txt.split('\n').forEach(raw=>{
+    const line=raw.trim();
+    if(!line||line.length<4) return;
+    if(skip.test(line)) return;
+    // Match: optional leading qty, name, then price at end (optional trailing T/F for tax flag)
+    const m=line.match(/^(?:\d+\s+)?(.+?)\s+\$?(\d{1,4}[.,]\d{2})\s*[A-Z]?\s*$/);
+    if(m){
+      const name=m[1].replace(/\*+/g,'').trim();
+      const price=parseFloat(m[2].replace(',','.'));
+      if(name.length>=2&&price>0&&price<5000)
+        items.push({name,price,unit:'unit',linkId:null,linkName:null});
+    }
+  });
+  return items;
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let scanItems=[];
+let linkIdx=null;
+
+// ─── RENDER: LIST ─────────────────────────────────────────────────────────────
+function renderList(){
+  const list=getList();
+  const view=document.querySelector('.vtab.active')?.dataset.v||'list';
+  const el=document.getElementById('list-body');
+  if(!list.length){ el.innerHTML='<div class="empty">Your list is empty.<br>Type above to add items.</div>'; return }
+  el.innerHTML = view==='store' ? renderByStore(list) : renderFlat(list);
+}
+function renderFlat(list){
+  return list.map(e=>{
+    if(!e.item) return '';
+    const c=cheapest(e.item.id);
+    const sub=c?`$${c.price.toFixed(2)}/${c.unit} · ${c.storeName}`:'no price data';
+    const subCls=c?'row-sub':'row-sub nd';
+    return rowHtml(e, e.item.name, sub, subCls);
+  }).join('');
+}
+function renderByStore(list){
+  const groups={}, nodata=[];
+  list.forEach(e=>{
+    if(!e.item) return;
+    const c=cheapest(e.item.id);
+    if(c){
+      if(!groups[c.storeId]) groups[c.storeId]={name:c.storeName,entries:[]};
+      groups[c.storeId].entries.push({e,price:c.price,unit:c.unit});
+    } else nodata.push(e);
+  });
+  let html='';
+  Object.values(groups).forEach(g=>{
+    html+=`<div class="store-grp"><div class="grp-hdr">${g.name}</div>`;
+    html+=g.entries.map(({e,price,unit})=>rowHtml(e,e.item.name,`$${price.toFixed(2)}/${unit}`,'row-sub')).join('');
+    html+=`</div>`;
+  });
+  if(nodata.length){
+    html+=`<div class="store-grp"><div class="grp-hdr nd-hdr">No price data</div>`;
+    html+=nodata.map(e=>rowHtml(e,e.item.name,'no price data','row-sub nd')).join('');
+    html+=`</div>`;
+  }
+  return html;
+}
+function rowHtml(e,name,sub,subCls){
+  return `<div class="list-row${e.done?' done':''}">
+    <div class="chkbox${e.done?' on':''}" onclick="toggleCheck('${e.id}')"></div>
+    <div class="row-body" onclick="toggleCheck('${e.id}')">
+      <div class="row-name">${esc(name)}</div>
+      <div class="${subCls}">${sub}</div>
+    </div>
+    <button class="row-del" onclick="delListItem('${e.id}')">&#215;</button>
+  </div>`;
+}
+
+// ─── RENDER: ALL ITEMS ────────────────────────────────────────────────────────
+function renderItems(filter=''){
+  const items=filter?searchItems(filter):getItems();
+  const el=document.getElementById('items-body');
+  if(!items.length){ el.innerHTML=`<div class="empty">${filter?'No matching items.':'No items yet.<br>Scan a receipt to get started.'}</div>`; return }
+  el.innerHTML=items.map(item=>{
+    const prices=pricesFor(item.id);
+    const best=prices[0];
+    return `<div class="item-card" data-id="${item.id}">
+      <div class="ic-main" onclick="toggleCard('${item.id}')">
+        <div class="ic-name">${esc(item.name)}</div>
+        <div class="ic-right">
+          ${best?`<span class="ptag">$${best.price.toFixed(2)}<span class="pu">/${best.unit}</span></span><span class="ic-store">${esc(best.storeName)}</span>`:'<span class="nd-txt" style="font-size:11px">no data</span>'}
+          <span class="ic-arrow">&#9662;</span>
+        </div>
+      </div>
+      <div class="ic-prices">
+        ${prices.length?prices.map((p,i)=>`
+          <div class="pr-row${i===0?' best':''}">
+            <span class="pr-rank">${i===0?'&#9733;':i+1}</span>
+            <span class="pr-store">${esc(p.storeName)}</span>
+            <span class="pr-val">$${p.price.toFixed(2)}/${p.unit}</span>
+          </div>`).join(''):'<div class="pr-row"><span class="pr-store nd-txt">No prices recorded</span></div>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleCard(id){
+  const c=document.querySelector(`.item-card[data-id="${id}"]`);
+  if(c) c.classList.toggle('open');
+}
+
+// ─── RENDER: SCAN ─────────────────────────────────────────────────────────────
+function renderScanItems(){
+  const el=document.getElementById('scan-list');
+  if(!scanItems.length){
+    el.innerHTML=`<div class="empty">No items detected.<br>Items may be blurry — try better lighting.</div>
+      <div style="padding:0 12px"><button class="btn-s fw" style="margin-top:8px" onclick="addManualRow()">+ Add row manually</button></div>`;
+    return;
+  }
+  el.innerHTML=`<div class="scan-hdr"><span>${scanItems.length} item${scanItems.length!==1?'s':''} found</span><button class="btn-txt" onclick="addManualRow()">+ Add row</button></div>`+
+  scanItems.map((it,i)=>`
+    <div class="scan-item">
+      <div class="si-top">
+        <input class="si-name" value="${esc(it.name)}" onchange="updScan(${i},'name',this.value)" placeholder="Item name">
+        <button class="si-del" onclick="delScanRow(${i})">&#215;</button>
+      </div>
+      <div class="si-bot">
+        <div class="price-grp">
+          <span class="price-pfx">$</span>
+          <input class="si-price" type="number" step=".01" min="0" value="${it.price||''}" onchange="updScan(${i},'price',parseFloat(this.value)||0)">
+          <select class="si-unit" onchange="updScan(${i},'unit',this.value)">
+            <option value="unit"${it.unit==='unit'?' selected':''}>/ unit</option>
+            <option value="lb"${it.unit==='lb'?' selected':''}>/lb</option>
+            <option value="oz"${it.unit==='oz'?' selected':''}>/oz</option>
+            <option value="kg"${it.unit==='kg'?' selected':''}>/kg</option>
+          </select>
+        </div>
+        <button class="btn-link${it.linkId?' linked':''}" onclick="openLink(${i})">${it.linkId?'&#128279; '+esc(it.linkName):'+ Link'}</button>
+      </div>
+    </div>`).join('');
+}
+function renderStoreSelect(){
+  const sel=document.getElementById('store-sel');
+  sel.innerHTML='<option value="">Select store&#8230;</option>'+getStores().map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+}
+function renderLinkList(q){
+  const items=searchItems(q);
+  const el=document.getElementById('link-list');
+  if(!items.length){ el.innerHTML='<div class="link-muted">No matches &#8212; use button below to create</div>'; return }
+  el.innerHTML=items.slice(0,30).map(it=>`
+    <div class="link-row" onclick="selectLink('${it.id}','${esc(it.name).replace(/'/g,"\\'")}')">
+      <span>${esc(it.name)}</span>
+      ${it.aliases?.length?`<span class="link-aliases">${it.aliases.slice(0,3).join(' · ')}</span>`:''}
+    </div>`).join('');
+}
+
+// ─── ACTIONS ──────────────────────────────────────────────────────────────────
+function updScan(i,k,v){ scanItems[i][k]=v }
+function delScanRow(i){ scanItems.splice(i,1); renderScanItems() }
+function addManualRow(){ scanItems.push({name:'',price:0,unit:'unit',linkId:null,linkName:null}); renderScanItems() }
+
+function openLink(i){
+  linkIdx=i;
+  document.getElementById('link-scanned').textContent=`"${scanItems[i].name}"`;
+  document.getElementById('link-input').value='';
+  renderLinkList('');
+  document.getElementById('link-drawer').classList.add('on');
+  document.getElementById('backdrop').classList.add('on');
+}
+function closeLink(){
+  document.getElementById('link-drawer').classList.remove('on');
+  document.getElementById('backdrop').classList.remove('on');
+  linkIdx=null;
+}
+function selectLink(id, name){
+  if(linkIdx===null) return;
+  scanItems[linkIdx].linkId=id; scanItems[linkIdx].linkName=name;
+  closeLink(); renderScanItems();
+}
+function doCreateLink(){
+  if(linkIdx===null) return;
+  const q=document.getElementById('link-input').value.trim()||scanItems[linkIdx].name;
+  if(!q) return;
+  const it=addItem(q);
+  if(q!==scanItems[linkIdx].name&&scanItems[linkIdx].name) addAlias(it.id,scanItems[linkIdx].name);
+  selectLink(it.id, it.name);
+}
+function openStoreModal(){
+  document.getElementById('store-inp').value='';
+  document.getElementById('store-modal').classList.add('on');
+  document.getElementById('backdrop').classList.add('on');
+  setTimeout(()=>document.getElementById('store-inp').focus(),50);
+}
+function closeStoreModal(){
+  document.getElementById('store-modal').classList.remove('on');
+  document.getElementById('backdrop').classList.remove('on');
+}
+function doAddStore(){
+  const name=document.getElementById('store-inp').value.trim();
+  if(!name) return;
+  const s=addStore(name);
+  renderStoreSelect();
+  document.getElementById('store-sel').value=s.id;
+  closeStoreModal();
+}
+function closeAll(){
+  closeLink();
+  closeStoreModal();
+}
+function doSave(){
+  const sid=document.getElementById('store-sel').value;
+  if(!sid){ alert('Please select a store first.'); return }
+  let n=0;
+  scanItems.forEach(it=>{
+    if(!it.name||it.price<=0) return;
+    let iid=it.linkId;
+    if(!iid){
+      const ni=addItem(it.name);
+      iid=ni.id;
+    } else {
+      const d=db.get(), ci=d.items.find(x=>x.id===iid);
+      if(ci&&ci.name!==it.name&&it.name) addAlias(iid,it.name);
+    }
+    upsertPrice(iid,sid,it.price,it.unit);
+    n++;
+  });
+  if(!n){ alert('No valid items to save (check names and prices).'); return }
+  scanItems=[];
+  goBack();
+}
+
+// Autocomplete
+function handleInput(val){
+  const ac=document.getElementById('autocomplete');
+  if(!val.trim()){ ac.classList.add('h'); return }
+  const matches=searchItems(val).slice(0,6);
+  ac.innerHTML=matches.map(it=>{
+    const c=cheapest(it.id);
+    return `<div class="ac-row" onclick="addExisting('${it.id}')"><span>${esc(it.name)}</span>${c?`<span class="ac-price">$${c.price.toFixed(2)}/${c.unit}</span>`:''}</div>`;
+  }).join('')+`<div class="ac-row ac-add" onclick="addNew()"><span>+ Add <strong>${esc(val)}</strong></span></div>`;
+  ac.classList.remove('h');
+}
+function addExisting(id){
+  addToList(id);
+  document.getElementById('item-input').value='';
+  document.getElementById('autocomplete').classList.add('h');
+  renderList();
+}
+function addNew(){
+  const v=document.getElementById('item-input').value.trim();
+  if(!v) return;
+  const it=addItem(v);
+  addExisting(it.id);
+}
+function toggleCheck(id){ toggleDone(id); renderList() }
+function delListItem(id){ removeFromList(id); renderList() }
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────────────
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  const isMain=name==='list';
+  document.getElementById('tb-back').classList.toggle('hidden',isMain);
+  document.getElementById('tb-nav').classList.toggle('hidden',!isMain);
+}
+function goBack(){ stopCamera(); showScreen('list'); renderList() }
+function goItems(){ showScreen('items'); renderItems() }
+async function goScan(){
+  showScreen('scan');
+  document.getElementById('step-cam').classList.remove('off');
+  document.getElementById('step-review').classList.add('off');
+  document.getElementById('cam-wrap').classList.remove('h');
+  document.getElementById('cam-fallback').classList.add('h');
+
+  const ok=await startCamera();
+  if(!ok){
+    document.getElementById('cam-wrap').classList.add('h');
+    document.getElementById('cam-fallback').classList.remove('h');
+  }
+}
+async function doCapture(){
+  const img=grabFrame(); stopCamera();
+  switchToReview(img);
+}
+async function switchToReview(img){
+  document.getElementById('step-cam').classList.add('off');
+  document.getElementById('step-review').classList.remove('off');
+  document.getElementById('review-img').src=img;
+  document.getElementById('ocr-prog').style.display='block';
+  document.getElementById('ocr-bar').style.width='0%';
+  document.getElementById('ocr-prog-txt').textContent='Processing&#8230;';
+  document.getElementById('scan-list').innerHTML='';
+  renderStoreSelect();
+  try{
+    const txt=await runOCR(img, p=>{
+      document.getElementById('ocr-bar').style.width=p+'%';
+      document.getElementById('ocr-prog-txt').textContent=`Processing&#8230; ${p}%`;
+    });
+    scanItems=parseReceipt(txt);
+  }catch(e){ scanItems=[] }
+  document.getElementById('ocr-prog').style.display='none';
+  renderScanItems();
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  // List input
+  const inp=document.getElementById('item-input');
+  inp.addEventListener('input',e=>handleInput(e.target.value));
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){ const ac=document.getElementById('autocomplete'); if(ac.classList.contains('h')) addNew() }
+  });
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.input-wrap')) document.getElementById('autocomplete').classList.add('h');
+  });
+
+  // View tabs
+  document.querySelectorAll('.vtab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.vtab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      renderList();
+    });
+  });
+
+  // File upload fallback
+  document.getElementById('file-input').addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=ev=>switchToReview(ev.target.result);
+    r.readAsDataURL(f);
+    e.target.value='';
+  });
+
+  // Link drawer search
+  document.getElementById('link-input').addEventListener('input',e=>renderLinkList(e.target.value));
+
+  // Store modal enter key
+  document.getElementById('store-inp').addEventListener('keydown',e=>{ if(e.key==='Enter') doAddStore() });
+
+  // All items search
+  document.getElementById('items-search').addEventListener('input',e=>renderItems(e.target.value));
+
+  renderList();
+});
+</script>
+</body>
+</html>
