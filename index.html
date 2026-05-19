@@ -18,7 +18,7 @@ body{font-family:'Jost',sans-serif;color:#141414}
   --t1:#141414;--t2:#555;--t3:#999;
   --rr:10px
 }
-#app{max-width:430px;margin:0 auto;height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg)}
+#app{max-width:430px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg)}
 
 /* TOPBAR */
 #topbar{background:var(--gd);flex-shrink:0;z-index:10;position:relative}
@@ -91,7 +91,7 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .gc.bl{bottom:-1px;left:-1px;border-width:0 0 3px 3px}
 .gc.br{bottom:-1px;right:-1px;border-width:0 3px 3px 0}
 #cam-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,.5);letter-spacing:.5px;white-space:nowrap}
-#cam-controls{padding:18px 20px;display:flex;align-items:center;justify-content:center;gap:20px;background:#000;flex-shrink:0}
+#cam-controls{padding:18px 20px max(22px,env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center;gap:20px;background:#000;flex-shrink:0}
 #btn-capture{width:66px;height:66px;border-radius:50%;border:3px solid #fff;background:var(--g);color:#fff;font-size:26px;cursor:pointer;transition:transform .1s,background .1s;display:flex;align-items:center;justify-content:center}
 #btn-capture:active{transform:scale(.9);background:var(--gd)}
 .btn-upload-lbl{color:rgba(255,255,255,.6);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:7px 13px;border:1px solid rgba(255,255,255,.25);border-radius:7px;transition:border-color .15s}
@@ -125,7 +125,7 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .btn-link{flex:1;border:1.5px dashed var(--bd);border-radius:7px;padding:7px 9px;font-family:'Jost',sans-serif;font-size:11px;color:var(--t3);cursor:pointer;background:none;text-align:left;transition:all .15s;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .btn-link:hover{border-color:var(--b);color:var(--b)}
 .btn-link.linked{border-color:var(--g);border-style:solid;color:var(--g)}
-#scan-actions{display:flex;gap:9px;padding:11px 12px;background:var(--sf);border-top:1px solid var(--bd);flex-shrink:0}
+#scan-actions{display:flex;gap:9px;padding:11px 12px max(14px,env(safe-area-inset-bottom)) 12px;background:var(--sf);border-top:1px solid var(--bd);flex-shrink:0}
 
 /* ALL ITEMS SCREEN */
 .search-wrap{padding:11px 12px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
@@ -392,11 +392,47 @@ function grabFrame(){
   c.getContext('2d').drawImage(v,0,0);
   return c.toDataURL('image/jpeg',.92);
 }
-async function runOCR(src, onProg){
-  const res=await Tesseract.recognize(src,'eng',{
-    logger:m=>{ if(m.status==='recognizing text'&&onProg) onProg(Math.round(m.progress*100)) }
+
+let lastOCRText='';
+
+async function preprocessImage(dataUrl){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{
+      const MAX=2000;
+      let w=img.width,h=img.height;
+      if(Math.max(w,h)>MAX){const s=MAX/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s)}
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      const ctx=c.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+      const id=ctx.getImageData(0,0,w,h),d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        const g=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
+        const v=g>155?255:0;
+        d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+      }
+      ctx.putImageData(id,0,0);
+      res(c.toDataURL('image/png'));
+    };
+    img.onerror=()=>res(dataUrl);
+    img.src=dataUrl;
   });
-  return res.data.text;
+}
+
+async function runOCR(src,onProg){
+  const processed=await preprocessImage(src);
+  let worker;
+  try{
+    worker=await Tesseract.createWorker('eng',1,{
+      logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(Math.round(m.progress*100))}
+    });
+    await worker.setParameters({tessedit_pageseg_mode:'4'});
+    const {data:{text}}=await worker.recognize(processed);
+    return text;
+  }finally{
+    if(worker) worker.terminate().catch(()=>{});
+  }
 }
 
 // ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
@@ -519,8 +555,14 @@ function toggleCard(id){
 function renderScanItems(){
   const el=document.getElementById('scan-list');
   if(!scanItems.length){
-    el.innerHTML=`<div class="empty">No items detected.<br>Items may be blurry — try better lighting.</div>
-      <div style="padding:0 12px"><button class="btn-s fw" style="margin-top:8px" onclick="addManualRow()">+ Add row manually</button></div>`;
+    el.innerHTML=`<div class="empty">No items detected.</div>
+      <div style="padding:0 12px 12px">
+        <button class="btn-s fw" onclick="addManualRow()">+ Add row manually</button>
+        ${lastOCRText?`<details style="margin-top:10px">
+          <summary style="font-size:11px;color:var(--t3);cursor:pointer;padding:4px 0">Show raw scan text (debug)</summary>
+          <pre style="margin-top:6px;padding:8px;background:#F5F5F5;border-radius:6px;font-size:10px;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto;color:var(--t2)">${esc(lastOCRText)}</pre>
+        </details>`:'<p style="font-size:11px;color:var(--t3);margin-top:8px">No OCR output — camera may not have captured.</p>'}
+      </div>`;
     return;
   }
   el.innerHTML=`<div class="scan-hdr"><span>${scanItems.length} item${scanItems.length!==1?'s':''} found</span><button class="btn-txt" onclick="addManualRow()">+ Add row</button></div>`+
@@ -699,19 +741,28 @@ async function switchToReview(img){
   document.getElementById('step-cam').classList.add('off');
   document.getElementById('step-review').classList.remove('off');
   document.getElementById('review-img').src=img;
-  document.getElementById('ocr-prog').style.display='block';
+  const prog=document.getElementById('ocr-prog');
+  prog.style.display='block';
   document.getElementById('ocr-bar').style.width='0%';
-  document.getElementById('ocr-prog-txt').textContent='Processing&#8230;';
+  document.getElementById('ocr-prog-txt').textContent='Preprocessing image\u2026';
   document.getElementById('scan-list').innerHTML='';
   renderStoreSelect();
+  let rawText='';
   try{
-    const txt=await runOCR(img, p=>{
+    document.getElementById('ocr-prog-txt').textContent='Reading text\u2026';
+    rawText=await runOCR(img,p=>{
       document.getElementById('ocr-bar').style.width=p+'%';
-      document.getElementById('ocr-prog-txt').textContent=`Processing&#8230; ${p}%`;
+      document.getElementById('ocr-prog-txt').textContent='Reading text\u2026 '+p+'%';
     });
-    scanItems=parseReceipt(txt);
-  }catch(e){ scanItems=[] }
-  document.getElementById('ocr-prog').style.display='none';
+    lastOCRText=rawText;
+    scanItems=parseReceipt(rawText);
+  }catch(e){
+    lastOCRText='';
+    document.getElementById('ocr-prog-txt').textContent='OCR failed: '+e.message;
+    prog.style.background='#FEE';
+    scanItems=[];
+  }
+  prog.style.display='none';
   renderScanItems();
 }
 
