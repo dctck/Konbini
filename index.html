@@ -456,29 +456,56 @@ async function runOCR(src,onProg){
 
 // ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
 function parseReceipt(txt){
-  const skip=l=>/balance\s*due|total|subtotal|tax|change|cash|credit|debit|visa|master|amount|tender|discount|saving|coupon|member|point|thank|welcome|receipt|trans|invoice|order|tel:|phone|address|date:|time:|ref#|auth|ticket|register|cashier/i.test(l)||/^(deli|produce|meat|bakery|seafood|dairy|frozen)$/i.test(l);
-  const clean=n=>n.replace(/^[^A-Za-z0-9]+/,'').replace(/_/g,' ').replace(/\s+/g,' ').trim();
-  const toPrice=s=>{ let p=s.replace(',','.'); if(!/\.\d{2}$/.test(p)) p+='0'; return parseFloat(p) };
-  const lbRe=/[\d.]+\s*(?:lb|1b)\s*@\s*\$?(\d{1,4}[.,]\d{1,2})\s*\/\s*(?:2\s*)?(?:lb|1b)/i;
+  const hasF=l=>/\bF\b[^A-Za-z0-9]*$/.test(l);
+  const isWt=l=>/\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i.test(l);
+  const isBundle=l=>/\bfor\b/i.test(l)||/\d+for\b/i.test(l);
+  const toPrice=s=>{
+    let p=String(s).replace(',','.');
+    if(!p.includes('.')){
+      if(p.length>=3){const c=parseFloat(p.slice(0,-2)+'.'+p.slice(-2));if(c>=0.5&&c<500)return c}
+      return parseFloat(p);
+    }
+    if(!/\.\d{2}$/.test(p))p+='0';
+    return parseFloat(p);
+  };
+  const clean=n=>n
+    .replace(/^[^A-Za-z0-9]+/,'')
+    .replace(/^[A-Za-z]{1,2}\s+/,'')
+    .replace(/[^\x20-\x7E]/g,'')
+    .replace(/[^A-Za-z0-9\s&\-\/]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+  const getRate=l=>{
+    const m=l.match(/\$?(\d+[.,]?\d*)\s*\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i);
+    return m?toPrice(m[1]):null;
+  };
+  const getPrice=l=>{
+    const s=l.replace(/\s+\bF\b[^A-Za-z0-9]*$/,'');
+    const m=s.match(/\$?(\d+(?:[.,]\d+)?)\s*$/);
+    return m?toPrice(m[1]):null;
+  };
   const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
   const items=[];
   for(let i=0;i<lines.length;i++){
-    const line=lines[i]; if(line.length<3||skip(line)) continue;
-    if(/^[A-Z\s]{2,25}$/.test(line)&&!/\d/.test(line)) continue;
-    const next=lines[i+1]||'';
-    const lbM=lbRe.exec(next);
-    if(lbM){
-      const name=clean(line.replace(/[*F\-]+\s*$/,''));
-      const rate=toPrice(lbM[1]);
-      if(name.length>=2&&rate>0) items.push({name,price:rate,unit:'lb',linkId:null,linkName:null});
-      i++; continue;
-    }
-    if(/\d+\s*@\s*\d+\s+for\b/i.test(next)){i++;continue}
-    const m=line.match(/^(.+?)\s{2,}\$?(\d{1,4}[.,]\d{1,2})\s*[A-Z.]*\s*$/);
-    if(m){
-      const name=clean(m[1]);
-      const price=toPrice(m[2]);
-      if(name.length>=2&&price>0&&price<5000&&!skip(name)&&!/^\d+\.?\d*$/.test(name))
+    const line=lines[i];
+    if(!hasF(line))continue;
+    if(isBundle(line))continue;
+    if(isWt(line)){
+      let name='';
+      for(let j=i-1;j>=Math.max(0,i-3);j--){
+        const prev=lines[j];
+        if(!hasF(prev)&&/[A-Za-z]{2}/.test(prev)){name=clean(prev);break}
+      }
+      const rate=getRate(line);
+      if(name.length>=2&&rate&&rate>0)
+        items.push({name,price:rate,unit:'lb',linkId:null,linkName:null});
+    }else{
+      const price=getPrice(line);
+      if(!price||price<=0||price>=500)continue;
+      const s=line.replace(/\s+\bF\b[^A-Za-z0-9]*$/,'');
+      const nameRaw=s.replace(/\s+\$?\d+(?:[.,]\d+)?\s*$/,'');
+      const name=clean(nameRaw);
+      if(name.length>=2)
         items.push({name,price,unit:'unit',linkId:null,linkName:null});
     }
   }
