@@ -468,6 +468,7 @@ function parseReceipt(txt){
 function parseAmazon(lines){
   const items=[];
   const cleanName=n=>n
+    .replace(/^[^A-Za-z0-9]+/,'')
     .replace(/^(?:PRODUCE|BAKERY|MEAT|SEAFOOD|DAIRY|DELI)\s+/i,'')
     .replace(/,\s*\d+\s*(?:count|each)$/i,'')
     .replace(/[^\x20-\x7E]/g,'')
@@ -762,8 +763,8 @@ function renderScanItems(){
       <div class="si-bot">
         <div class="price-grp">
           <span class="price-pfx">$</span>
-          <input class="si-price" type="number" step=".01" min="0" value="${(it.price||0).toFixed(2)}" onchange="updScan(${i},'price',parseFloat(this.value)||0)">
-          <select class="si-unit" onchange="updScan(${i},'unit',this.value)">
+          <input class="si-price" type="number" step=".01" min="0" value="${it.promoOn&&it.isAmazon?(it.origPrice||0).toFixed(2):(it.price||0).toFixed(2)}" onchange="updScanPrice(${i},parseFloat(this.value)||0)">
+          <select class="si-unit" onchange="updScan(${i},'unit',this.value);if(scanItems[${i}].isAmazon)renderScanItems()">
             <option value="unit"${it.unit==='unit'?' selected':''}>/ unit</option>
             <option value="lb"${it.unit==='lb'?' selected':''}>/lb</option>
             <option value="oz"${it.unit==='oz'?' selected':''}>/oz</option>
@@ -781,15 +782,15 @@ function renderScanItems(){
         <div class="si-promo-row">
           <button class="promo-toggle${it.promoOn?' on':''}" onclick="togglePromo(${i})">${it.promoOn?'&#10003; Promo applied':'+ Promo'}</button>
           ${it.promoOn?`
+            <span style="font-size:11px;color:var(--t2)">Total&nbsp;${it.unit}:</span>
             <input type="number" step=".01" min="0.01" class="promo-inp" value="${(it.qtyOrLbs||1).toFixed(it.unit==='lb'?2:0)}"
               onfocus="this.select()" onchange="updScanAmazon(${i},'qtyOrLbs',parseFloat(this.value)||1)">
-            <span style="font-size:11px;color:var(--t3)">${it.unit}</span>
-            <span style="font-size:11px;color:var(--t3)">&#8722;$</span>
+            <span style="font-size:11px;color:var(--t2)">Promo&nbsp;$:</span>
             <input type="number" step=".01" min="0" class="promo-inp" value="${(it.promoAmt||0).toFixed(2)}"
               onfocus="this.select()" onchange="updScanAmazon(${i},'promoAmt',parseFloat(this.value)||0)">
-            <span class="promo-eff" id="peff-${i}">= $${it.price.toFixed(2)}/${it.unit}</span>
           `:''}
         </div>
+        ${it.promoOn?`<div style="padding-top:3px"><span class="promo-eff" id="peff-${i}">= $${it.price.toFixed(2)}/${it.unit}</span></div>`:''}
       </div>`:''}
     </div>`).join('');
 }
@@ -857,15 +858,21 @@ function togglePromo(i){
 function updScanAmazon(i,field,val){
   scanItems[i][field]=val;
   recalcAmazonPrice(i);
-  // Update price + eff display without full re-render (avoids losing focus)
   const rows=document.querySelectorAll('.scan-item');
   if(rows[i]){
     const pi=rows[i].querySelector('.si-price');
-    const pe=rows[i].querySelector(`#peff-${i}`);
-    if(pi)pi.value=scanItems[i].price.toFixed(2);
-    if(pe&&scanItems[i].total&&scanItems[i].qtyOrLbs)
-      pe.textContent='$'+(scanItems[i].total/scanItems[i].qtyOrLbs).toFixed(2);
+    const pe=document.getElementById(`peff-${i}`);
+    if(pi) pi.value=(scanItems[i].promoOn&&scanItems[i].isAmazon?scanItems[i].origPrice:scanItems[i].price).toFixed(2);
+    if(pe) pe.textContent='= $'+scanItems[i].price.toFixed(2)+'/'+scanItems[i].unit;
   }
+}
+function updScanPrice(i,val){
+  const it=scanItems[i];
+  if(it.isAmazon&&it.promoOn){
+    it.origPrice=val; recalcAmazonPrice(i);
+    const pe=document.getElementById(`peff-${i}`);
+    if(pe) pe.textContent='= $'+it.price.toFixed(2)+'/'+it.unit;
+  } else it.price=val;
 }
 
 function deleteItem(id){
