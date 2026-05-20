@@ -250,7 +250,7 @@ canvas#cam-canvas{display:none}
         </div>
         <label class="btn-upload-lbl" for="file-input">Upload</label>
       </div>
-      <input type="file" id="file-input" accept="image/*" capture="environment" class="h">
+      <input type="file" id="file-input" accept="image/*" class="h">
     </div>
 
     <!-- Step 2: Review -->
@@ -454,6 +454,36 @@ async function runOCR(src,onProg){
 
 // ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
 function parseReceipt(txt){
+  const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
+  return /Qty:/i.test(txt)&&/@\s*\$/.test(txt)
+    ? parseAmazon(lines)
+    : parsePhysical(txt);
+}
+
+function parseAmazon(lines){
+  const items=[];
+  const cleanName=n=>n
+    .replace(/\$[\d.]+\s*$/, '')
+    .replace(/^(?:PRODUCE|BAKERY|MEAT|SEAFOOD|DAIRY|DELI)\s+/i,'')
+    .replace(/,\s*\d+\s*each$/i,'')
+    .replace(/[^\x20-\x7E]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(!/^Qty:/i.test(line)) continue;
+    const nameLine=lines[i-1]||'';
+    const name=cleanName(nameLine);
+    if(name.length<2) continue;
+    const lbM=line.match(/\$(\d+\.?\d*)\s*\/\s*lb/i);
+    const eachM=line.match(/@\s*\$(\d+\.?\d*)\s*each/i);
+    if(lbM) items.push({name,price:parseFloat(lbM[1]),unit:'lb',linkId:null,linkName:null});
+    else if(eachM) items.push({name,price:parseFloat(eachM[1]),unit:'unit',linkId:null,linkName:null});
+  }
+  return items;
+}
+
+function parsePhysical(txt){
   const hasF=l=>/\bF\b[^A-Za-z0-9]*$/.test(l);
   const isWt=l=>/\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i.test(l);
   const isBundle=l=>/\bfor\b/i.test(l)||/\d+for\b/i.test(l);
