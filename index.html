@@ -524,8 +524,7 @@ function parseAmazon(lines){
     }
 
     // Effective price = total / qtyOrLbs (total is already post-promo on receipt)
-    const effectivePrice=total>0&&qtyOrLbs>0?total/qtyOrLbs:origPrice;
-    const price=promoAmt>0?effectivePrice:origPrice;
+    const price=promoAmt>0?Math.max(0,origPrice-(promoAmt/qtyOrLbs)):origPrice;
 
     items.push({
       name, price, unit:isLb?'lb':'unit', count:1,
