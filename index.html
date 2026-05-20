@@ -316,16 +316,12 @@ canvas#cam-canvas{display:none}
   <!-- BACKDROP -->
   <div id="backdrop" onclick="closeAll()"></div>
 
-  <!-- LINK DRAWER -->
-  <div id="link-drawer">
-    <div class="drw-handle"></div>
-    <div class="drw-hdr">
-      <b>Link to item</b>
-      <span id="link-scanned"></span>
+  <!-- SCREEN: LINK -->
+  <div id="screen-link" class="screen">
+    <div class="search-wrap">
+      <input id="link-search" class="main-input" type="text" placeholder="Search items&#8230;" autocomplete="off">
     </div>
-    <input id="link-input" type="text" placeholder="Search saved items&#8230;" autocomplete="off">
-    <div id="link-list"></div>
-    <button id="btn-link-create" class="btn-p fw" onclick="doCreateLink()">+ Create &amp; link as new item</button>
+    <div id="link-body" class="scroll"></div>
   </div>
 
   <!-- EDIT DRAWER -->
@@ -808,14 +804,44 @@ function renderStoreSelect(){
   const sel=document.getElementById('store-sel');
   sel.innerHTML='<option value="">Select store&#8230;</option>'+getStores().map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
 }
-function renderLinkList(q){
-  const items=searchItems(q),el=document.getElementById('link-list');
-  if(!items.length){el.innerHTML='<div class="link-muted">No matches &#8212; use button below to create</div>';return}
-  el.innerHTML=items.slice(0,30).map(it=>`
-    <div class="link-row" onclick="selectLink('${it.id}','${esc(it.name).replace(/'/g,"\\'")}')">
-      <span>${esc(it.name)}</span>
-      ${it.aliases?.length?`<span class="link-aliases">${it.aliases.slice(0,3).join(' · ')}</span>`:''}
-    </div>`).join('');
+function renderLinkScreen(scannedName,q){
+  const el=document.getElementById('link-body');
+  const allItems=q?searchItems(q):getItems();
+  let html='';
+
+  // Suggestions: items whose name/aliases share words with the scanned name
+  if(!q&&scannedName){
+    const words=scannedName.toLowerCase().split(/\s+/).filter(w=>w.length>2);
+    const sugg=words.length?getItems().filter(it=>{
+      const hay=(it.name+' '+(it.aliases||[]).join(' ')).toLowerCase();
+      return words.some(w=>hay.includes(w));
+    }).slice(0,5):[];
+    if(sugg.length){
+      html+=`<div class="grp-hdr" style="color:var(--b)">Suggestions for &#8220;${esc(scannedName)}&#8221;</div>`;
+      html+=sugg.map(it=>linkRow(it)).join('');
+      html+=`<div class="grp-hdr">All Items</div>`;
+    }
+  }
+
+  if(!allItems.length) html+='<div class="empty">No items yet.</div>';
+  else html+=allItems.map(it=>linkRow(it)).join('');
+
+  const createLabel=q?`Create &#8220;${esc(q)}&#8221; &amp; link`:`Create &amp; link &#8220;${esc(scannedName)}&#8221;`;
+  html+=`<div style="padding:12px">
+    <button class="btn-p fw" onclick="doCreateLink()">${createLabel}</button>
+  </div>`;
+
+  el.innerHTML=html;
+}
+function linkRow(it){
+  const c=cheapest(it.id);
+  return`<div class="list-row" style="cursor:pointer" onclick="selectLink('${it.id}','${esc(it.name).replace(/'/g,"\\'")}')">
+    <div class="row-body">
+      <div class="row-name">${esc(it.name)}</div>
+      ${it.aliases?.length?`<div class="row-sub nd">${it.aliases.slice(0,3).join(' · ')}</div>`:''}
+    </div>
+    ${c?`<span style="font-family:Space Mono,monospace;font-size:11px;color:var(--g)">$${c.price.toFixed(2)}/${c.unit}</span>`:''}
+  </div>`;
 }
 
 // ─── ACTIONS ──────────────────────────────────────────────────────────────────
@@ -858,17 +884,19 @@ function deleteItem(id){
 
 function openLink(i){
   window._linkIdx=i;
-  document.getElementById('link-scanned').textContent=`"${scanItems[i].name}"`;
-  document.getElementById('link-input').value='';
-  renderLinkList('');
-  document.getElementById('link-drawer').classList.add('on');
-  document.getElementById('backdrop').classList.add('on');
+  const name=scanItems[i].name;
+  document.getElementById('link-search').value='';
+  renderLinkScreen(name,'');
+  showScreen('link');
+  document.getElementById('tb-back').onclick=closeLink;
+  setTimeout(()=>document.getElementById('link-search').focus(),80);
 }
 function closeLink(){
-  document.getElementById('link-drawer').classList.remove('on');
-  document.getElementById('backdrop').classList.remove('on');
+  document.getElementById('tb-back').onclick=goBack;
+  showScreen('scan');
   window._linkIdx=null;
 }
+
 function selectLink(id,name){
   const i=window._linkIdx;if(i==null)return;
   scanItems[i].linkId=id;scanItems[i].linkName=name;
@@ -876,10 +904,10 @@ function selectLink(id,name){
 }
 function doCreateLink(){
   const i=window._linkIdx;if(i==null)return;
-  const q=document.getElementById('link-input').value.trim()||scanItems[i].name;
+  const q=document.getElementById('link-search').value.trim()||(scanItems[i]?.name||'');
   if(!q)return;
   const it=addItem(q);
-  if(q!==scanItems[i].name&&scanItems[i].name)addAlias(it.id,scanItems[i].name);
+  if(i!=null&&scanItems[i]?.name&&q!==scanItems[i].name)addAlias(it.id,scanItems[i].name);
   selectLink(it.id,it.name);
 }
 function openStoreModal(){
@@ -898,7 +926,7 @@ function doAddStore(){
   document.getElementById('store-sel').value=s.id;
   closeStoreModal();
 }
-function closeAll(){closeLink();closeStoreModal();closeEditItem()}
+function closeAll(){closeStoreModal();closeEditItem()}
 
 function doSave(){
   const sid=document.getElementById('store-sel').value;
@@ -1036,7 +1064,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     r.readAsDataURL(f);e.target.value='';
   });
 
-  document.getElementById('link-input').addEventListener('input',e=>renderLinkList(e.target.value));
+  document.getElementById('link-search').addEventListener('input',e=>{
+    const i=window._linkIdx;
+    renderLinkScreen(i!=null?scanItems[i]?.name||'':'',e.target.value);
+  });
   document.getElementById('store-inp').addEventListener('keydown',e=>{if(e.key==='Enter')doAddStore()});
   document.getElementById('items-search').addEventListener('input',e=>renderItems(e.target.value));
 
