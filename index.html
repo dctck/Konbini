@@ -208,6 +208,16 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .modal-inp:focus{border-color:var(--g);background:#fff}
 .modal-btns{display:flex;gap:9px}
 
+/* PROMO SECTION */
+.si-promo{border-top:1px dashed var(--bd);margin-top:7px;padding-top:6px}
+.si-promo-row{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);flex-wrap:wrap;margin-bottom:3px}
+.promo-inp{width:54px;border:1px solid var(--bd);border-radius:5px;padding:3px 5px;font-size:11px;font-family:'Space Mono',monospace;background:#FAFAFA;outline:none;color:var(--t1);text-align:right}
+.promo-inp:focus{border-color:var(--g)}
+.promo-toggle{background:none;border:1.5px solid var(--bd);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;color:var(--t3);cursor:pointer;letter-spacing:.5px;transition:all .15s;white-space:nowrap}
+.promo-toggle.on{background:var(--gl);border-color:var(--g);color:var(--g)}
+.promo-eff{font-family:'Space Mono',monospace;font-size:11px;color:var(--g);font-weight:700;min-width:40px}
+.promo-orig{font-family:'Space Mono',monospace;font-size:10px;color:var(--t3);text-decoration:line-through}
+
 /* UTILS */
 .h{display:none!important}
 .nd-txt{color:var(--t3)}
@@ -463,21 +473,69 @@ function parseAmazon(lines){
   const items=[];
   const cleanName=n=>n
     .replace(/^(?:PRODUCE|BAKERY|MEAT|SEAFOOD|DAIRY|DELI)\s+/i,'')
-    .replace(/,\s*\d+\s*each$/i,'')
+    .replace(/,\s*\d+\s*(?:count|each)$/i,'')
     .replace(/[^\x20-\x7E]/g,'')
     .replace(/\s+/g,' ').trim();
-  for(let i=1;i<lines.length;i++){
+
+  for(let i=0;i<lines.length;i++){
     const line=lines[i];
-    if(!/@\s*\$/.test(line)||/tare/i.test(line))continue;
-    const nameRaw=(lines[i-1]||'').match(/^(.+?)\s*\$/);
-    if(!nameRaw)continue;
-    const name=cleanName(nameRaw[1]);
-    if(name.length<2)continue;
-    const priceM=line.match(/@\s*\$(\d+\.?\d*)/);
-    if(!priceM)continue;
-    const price=parseFloat(priceM[1]);
-    const unit=/lb/i.test(line.split('@')[0])?'lb':'unit';
-    if(price>0)items.push({name,price,unit,count:1,linkId:null,linkName:null});
+    if(!/@\s*\$/.test(line)||/tare/i.test(line)||/promo/i.test(line)) continue;
+
+    // Find header line (has $total) looking back up to 6 lines
+    let headerIdx=-1;
+    for(let j=i-1;j>=Math.max(0,i-6);j--){
+      if(/\$\s*[\d.]+/.test(lines[j])&&!/@/.test(lines[j])&&!/promo/i.test(lines[j])&&!/tare/i.test(lines[j])){
+        headerIdx=j;break;
+      }
+    }
+    if(headerIdx<0) continue;
+
+    // Extract total (last $number on header line)
+    const totalM=lines[headerIdx].match(/\$\s*([\d.]+)\s*$/);
+    const total=totalM?parseFloat(totalM[1]):0;
+
+    // Build name from all lines between header and Qty line (handles multi-line names)
+    let nameParts=[];
+    for(let j=headerIdx;j<i;j++){
+      let part=lines[j];
+      if(j===headerIdx) part=part.replace(/\s*\$\s*[\d.]+\s*$/,''); // strip trailing price
+      if(!/@/.test(part)&&!/promo/i.test(part)&&!/tare/i.test(part)&&part.trim()) nameParts.push(part.trim());
+    }
+    const name=cleanName(nameParts.join(' '));
+    if(name.length<2) continue;
+
+    // Detect lb (handle OCR variants: lb, lbs, 1b, Ib)
+    const beforeAt=line.split('@')[0];
+    const isLb=/\b(?:lb|lbs|1b|Ib)\b/i.test(beforeAt);
+
+    // Extract per-unit or per-lb rate from "@ $X.XX"
+    const rateM=line.match(/@\s*\$\s*([\d.]+)/);
+    if(!rateM) continue;
+    const origPrice=parseFloat(rateM[1]);
+
+    // Extract qty or lbs (number before @ or before lb)
+    const qtyM=isLb
+      ? beforeAt.match(/([\d.]+)\s*(?:lb|lbs|1b|Ib)/i)
+      : beforeAt.match(/(\d+)\s*$/);
+    const qtyOrLbs=qtyM?parseFloat(qtyM[1]):1;
+
+    // Look for promotion on next 1-3 lines
+    let promoAmt=0;
+    for(let j=i+1;j<=Math.min(lines.length-1,i+3);j++){
+      const pm=lines[j].match(/\$?\s*([\d.]+)\s*promotions?\s*applied/i);
+      if(pm){promoAmt=parseFloat(pm[1]);break}
+    }
+
+    // Effective price = total / qtyOrLbs (total is already post-promo on receipt)
+    const effectivePrice=total>0&&qtyOrLbs>0?total/qtyOrLbs:origPrice;
+    const price=promoAmt>0?effectivePrice:origPrice;
+
+    items.push({
+      name, price, unit:isLb?'lb':'unit', count:1,
+      origPrice, total, qtyOrLbs, promoAmt,
+      promoOn:promoAmt>0, isAmazon:true,
+      linkId:null,linkName:null
+    });
   }
   return items;
 }
@@ -708,7 +766,7 @@ function renderScanItems(){
       <div class="si-bot">
         <div class="price-grp">
           <span class="price-pfx">$</span>
-          <input class="si-price" type="number" step=".01" min="0" value="${it.price||''}" onchange="updScan(${i},'price',parseFloat(this.value)||0)">
+          <input class="si-price" type="number" step=".01" min="0" value="${(it.price||0).toFixed(2)}" onchange="updScan(${i},'price',parseFloat(this.value)||0)">
           <select class="si-unit" onchange="updScan(${i},'unit',this.value)">
             <option value="unit"${it.unit==='unit'?' selected':''}>/ unit</option>
             <option value="lb"${it.unit==='lb'?' selected':''}>/lb</option>
@@ -722,6 +780,28 @@ function renderScanItems(){
         </div>
         <button class="btn-link${it.linkId?' linked':''}" onclick="openLink(${i})">${it.linkId?'&#128279; '+esc(it.linkName):'+ Link'}</button>
       </div>
+      ${it.isAmazon?`
+      <div class="si-promo">
+        <div class="si-promo-row">
+          <span>Total $</span>
+          <input type="number" step=".01" min="0" class="promo-inp" value="${(it.total||0).toFixed(2)}"
+            onchange="updScanAmazon(${i},'total',parseFloat(this.value)||0)">
+          <span>&#247;</span>
+          <input type="number" step=".01" min="0.01" class="promo-inp" value="${(it.qtyOrLbs||1).toFixed(it.unit==='unit'?0:2)}"
+            onchange="updScanAmazon(${i},'qtyOrLbs',parseFloat(this.value)||1)">
+          <span>${it.unit}</span>
+          <span>=</span>
+          <span class="promo-eff" id="peff-${i}">$${it.total&&it.qtyOrLbs?(it.total/it.qtyOrLbs).toFixed(2):'—'}</span>
+          ${it.origPrice?`<span class="promo-orig">$${it.origPrice.toFixed(2)}</span>`:''}
+          <button class="promo-toggle${it.promoOn?' on':''}" onclick="togglePromo(${i})">${it.promoOn?'PROMO ON':'+ PROMO'}</button>
+        </div>
+        ${it.promoOn?`<div class="si-promo-row">
+          <span style="color:var(--t3)">Promo&#8239;&#8722;$</span>
+          <input type="number" step=".01" min="0" class="promo-inp" value="${(it.promoAmt||0).toFixed(2)}"
+            onchange="updScanAmazon(${i},'promoAmt',parseFloat(this.value)||0)">
+          <span style="color:var(--t3);font-size:10px">applied</span>
+        </div>`:''}
+      </div>`:''}
     </div>`).join('');
 }
 function renderStoreSelect(){
@@ -742,6 +822,29 @@ function renderLinkList(q){
 function updScan(i,k,v){scanItems[i][k]=v}
 function delScanRow(i){scanItems.splice(i,1);renderScanItems()}
 function addManualRow(){scanItems.push({name:'',price:0,unit:'unit',count:1,linkId:null,linkName:null});renderScanItems()}
+
+function recalcAmazonPrice(i){
+  const it=scanItems[i];if(!it.isAmazon)return;
+  it.price=it.promoOn&&it.total&&it.qtyOrLbs?it.total/it.qtyOrLbs:(it.origPrice||it.price);
+}
+function togglePromo(i){
+  scanItems[i].promoOn=!scanItems[i].promoOn;
+  recalcAmazonPrice(i);
+  renderScanItems();
+}
+function updScanAmazon(i,field,val){
+  scanItems[i][field]=val;
+  recalcAmazonPrice(i);
+  // Update price + eff display without full re-render (avoids losing focus)
+  const rows=document.querySelectorAll('.scan-item');
+  if(rows[i]){
+    const pi=rows[i].querySelector('.si-price');
+    const pe=rows[i].querySelector(`#peff-${i}`);
+    if(pi)pi.value=scanItems[i].price.toFixed(2);
+    if(pe&&scanItems[i].total&&scanItems[i].qtyOrLbs)
+      pe.textContent='$'+(scanItems[i].total/scanItems[i].qtyOrLbs).toFixed(2);
+  }
+}
 
 function deleteItem(id){
   if(!confirm('Delete this item and all its prices?'))return;
