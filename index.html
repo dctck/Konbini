@@ -394,8 +394,6 @@ function grabFrame(){
   return c.toDataURL('image/jpeg',.92);
 }
 
-let lastOCRText='';
-
 function detectReceiptBounds(canvas){
   const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
   const id=ctx.getImageData(0,0,w,h),d=id.data;
