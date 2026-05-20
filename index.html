@@ -267,6 +267,7 @@ canvas#cam-canvas{display:none}
       <div id="scan-list" class="scroll"></div>
       <div id="scan-actions">
         <button class="btn-s" onclick="goScan()">Rescan</button>
+        <button class="btn-s" onclick="scanMore()">+ Add page</button>
         <button class="btn-p" onclick="doSave()">Save All</button>
       </div>
     </div>
@@ -395,6 +396,28 @@ function grabFrame(){
 
 let lastOCRText='';
 
+function detectReceiptBounds(canvas){
+  const ctx=canvas.getContext('2d'),w=canvas.width,h=canvas.height;
+  const id=ctx.getImageData(0,0,w,h),d=id.data;
+  const BRIGHT=205,STEP=6;
+  const cols=new Int32Array(w),rows=new Int32Array(h);
+  let hits=0;
+  for(let y=0;y<h;y+=STEP) for(let x=0;x<w;x+=STEP){
+    const i=(y*w+x)*4;
+    if((d[i]+d[i+1]+d[i+2])/3>BRIGHT){cols[x]++;rows[y]++;hits++}
+  }
+  if(hits<100) return {x:0,y:0,w,h};
+  const ct=(h/STEP)*0.3,rt=(w/STEP)*0.3;
+  let l=0,r=w-1,t=0,b=h-1;
+  for(let x=0;x<w;x++) if(cols[x]>ct){l=x;break}
+  for(let x=w-1;x>=0;x--) if(cols[x]>ct){r=x;break}
+  for(let y=0;y<h;y++) if(rows[y]>rt){t=y;break}
+  for(let y=h-1;y>=0;y--) if(rows[y]>rt){b=y;break}
+  if(r-l<w*0.08||b-t<h*0.05) return {x:0,y:0,w,h};
+  const pad=Math.round(Math.max(w,h)*0.01);
+  return {x:Math.max(0,l-pad),y:Math.max(0,t-pad),w:Math.min(w,r-l+pad*2),h:Math.min(h,b-t+pad*2)};
+}
+
 async function preprocessImage(dataUrl){
   return new Promise(res=>{
     const img=new Image();
@@ -404,16 +427,19 @@ async function preprocessImage(dataUrl){
       if(Math.max(w,h)>MAX){const s=MAX/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s)}
       const c=document.createElement('canvas');
       c.width=w;c.height=h;
-      const ctx=c.getContext('2d');
-      ctx.drawImage(img,0,0,w,h);
-      const id=ctx.getImageData(0,0,w,h),d=id.data;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      const bnd=detectReceiptBounds(c);
+      const c2=document.createElement('canvas');
+      c2.width=bnd.w;c2.height=bnd.h;
+      const ctx2=c2.getContext('2d');
+      ctx2.drawImage(c,bnd.x,bnd.y,bnd.w,bnd.h,0,0,bnd.w,bnd.h);
+      const id=ctx2.getImageData(0,0,bnd.w,bnd.h),d=id.data;
       for(let i=0;i<d.length;i+=4){
         const g=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
-        const v=g>155?255:0;
-        d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;
+        d[i]=d[i+1]=d[i+2]=g;d[i+3]=255;
       }
-      ctx.putImageData(id,0,0);
-      res(c.toDataURL('image/png'));
+      ctx2.putImageData(id,0,0);
+      res(c2.toDataURL('image/png'));
     };
     img.onerror=()=>res(dataUrl);
     img.src=dataUrl;
@@ -430,27 +456,29 @@ async function runOCR(src,onProg){
 
 // ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
 function parseReceipt(txt){
-  const skipLine=l=>/balance|total|subtotal|tax|change|cash|credit|debit|visa|master|amount|tender|discount|saving|coupon|member|point|thank|welcome|receipt|trans|invoice|order|tel:|phone|address|date:|time:|ref#|auth|ticket|register|cashier/i.test(l)||/^(deli|produce|meat|bakery|seafood|dairy|frozen|beverages?|snacks?)$/i.test(l);
+  const skip=l=>/balance\s*due|total|subtotal|tax|change|cash|credit|debit|visa|master|amount|tender|discount|saving|coupon|member|point|thank|welcome|receipt|trans|invoice|order|tel:|phone|address|date:|time:|ref#|auth|ticket|register|cashier/i.test(l)||/^(deli|produce|meat|bakery|seafood|dairy|frozen)$/i.test(l);
+  const clean=n=>n.replace(/^[^A-Za-z0-9]+/,'').replace(/_/g,' ').replace(/\s+/g,' ').trim();
+  const toPrice=s=>{ let p=s.replace(',','.'); if(!/\.\d{2}$/.test(p)) p+='0'; return parseFloat(p) };
+  const lbRe=/[\d.]+\s*(?:lb|1b)\s*@\s*\$?(\d{1,4}[.,]\d{1,2})\s*\/\s*(?:2\s*)?(?:lb|1b)/i;
   const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
   const items=[];
   for(let i=0;i<lines.length;i++){
-    const line=lines[i];
-    if(line.length<2||skipLine(line)) continue;
-    if(/^[A-Z\s]{2,20}$/.test(line)&&!/\d/.test(line)) continue; // section headers
+    const line=lines[i]; if(line.length<3||skip(line)) continue;
+    if(/^[A-Z\s]{2,25}$/.test(line)&&!/\d/.test(line)) continue;
     const next=lines[i+1]||'';
-    // Multi-line by-weight: next line is "X.XX lb @ RATE/ lb  TOTAL"
-    const lbM=next.match(/[\d.]+\s*lb\s*@\s*\$?(\d+\.?\d*)\s*\/\s*(?:2\s*)?lb\b/i);
-    const kgM=next.match(/[\d.]+\s*kg\s*@\s*\$?(\d+\.?\d*)\s*\/\s*kg\b/i);
-    const bundle=next.match(/\d+\s*@\s*\d+\s+for\b/i);
-    if(lbM){ const r=parseFloat(lbM[1]); if(r>0) items.push({name:line.replace(/[*F]\s*$/,'').trim(),price:r,unit:'lb',linkId:null,linkName:null}); i++; continue }
-    if(kgM){ const r=parseFloat(kgM[1]); if(r>0) items.push({name:line.replace(/[*F]\s*$/,'').trim(),price:r,unit:'kg',linkId:null,linkName:null}); i++; continue }
-    if(bundle){ i++; continue } // bundle deals — ambiguous per-unit price, skip
-    // Single-line item: NAME  PRICE [F/T]
-    const m=line.match(/^(.+?)\s{2,}\$?(\d{1,4}[.,]\d{2})\s*[A-Z]?\s*$/);
+    const lbM=lbRe.exec(next);
+    if(lbM){
+      const name=clean(line.replace(/[*F\-]+\s*$/,''));
+      const rate=toPrice(lbM[1]);
+      if(name.length>=2&&rate>0) items.push({name,price:rate,unit:'lb',linkId:null,linkName:null});
+      i++; continue;
+    }
+    if(/\d+\s*@\s*\d+\s+for\b/i.test(next)){i++;continue}
+    const m=line.match(/^(.+?)\s{2,}\$?(\d{1,4}[.,]\d{1,2})\s*[A-Z.]*\s*$/);
     if(m){
-      const name=m[1].replace(/[*]+/g,'').trim();
-      const price=parseFloat(m[2].replace(',','.'));
-      if(name.length>=2&&price>0&&price<5000&&!skipLine(name)&&!/^\d+(\.\d+)?$/.test(name))
+      const name=clean(m[1]);
+      const price=toPrice(m[2]);
+      if(name.length>=2&&price>0&&price<5000&&!skip(name)&&!/^\d+\.?\d*$/.test(name))
         items.push({name,price,unit:'unit',linkId:null,linkName:null});
     }
   }
@@ -458,8 +486,9 @@ function parseReceipt(txt){
 }
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let scanItems=[];
-let linkIdx=null;
+let scanItems=[],lastOCRText='',appendMode=false;
+
+function scanMore(){appendMode=true;goScan()}
 
 // ─── RENDER: LIST ─────────────────────────────────────────────────────────────
 function renderList(){
@@ -748,7 +777,9 @@ async function switchToReview(img){
       document.getElementById('ocr-prog-txt').textContent='Reading text\u2026 '+p+'%';
     });
     lastOCRText=rawText;
-    scanItems=parseReceipt(rawText);
+    const fresh=parseReceipt(rawText);
+    scanItems=appendMode?[...scanItems,...fresh]:fresh;
+    appendMode=false;
   }catch(e){
     lastOCRText='OCR Error: '+e.message;
     scanItems=[];
