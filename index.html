@@ -858,13 +858,7 @@ function togglePromo(i){
 function updScanAmazon(i,field,val){
   scanItems[i][field]=val;
   recalcAmazonPrice(i);
-  const rows=document.querySelectorAll('.scan-item');
-  if(rows[i]){
-    const pi=rows[i].querySelector('.si-price');
-    const pe=document.getElementById(`peff-${i}`);
-    if(pi) pi.value=(scanItems[i].promoOn&&scanItems[i].isAmazon?scanItems[i].origPrice:scanItems[i].price).toFixed(2);
-    if(pe) pe.textContent='= $'+scanItems[i].price.toFixed(2)+'/'+scanItems[i].unit;
-  }
+  renderScanItems();
 }
 function updScanPrice(i,val){
   const it=scanItems[i];
