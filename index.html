@@ -39,8 +39,8 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .main-input{width:100%;border:1.5px solid var(--bd);border-radius:var(--rr);padding:9px 13px;font-family:'Jost',sans-serif;font-size:15px;color:var(--t1);outline:none;background:#FAFAFA;transition:border-color .15s}
 .main-input:focus{border-color:var(--g);background:#fff}
 
-/* AUTOCOMPLETE */
-#autocomplete{position:absolute;left:12px;right:12px;top:calc(100% - 1px);background:var(--sf);border:1px solid var(--bd);border-top:none;border-radius:0 0 var(--rr) var(--rr);z-index:20;box-shadow:0 4px 16px rgba(0,0,0,.1);overflow:hidden}
+/* AUTOCOMPLETE — fixed so keyboard can't push it off screen */
+#autocomplete{position:fixed;background:var(--sf);border:1px solid var(--bd);border-radius:var(--rr);z-index:200;box-shadow:0 4px 16px rgba(0,0,0,.12);overflow-y:auto;max-height:260px}
 .ac-row{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;cursor:pointer;font-size:14px;border-bottom:1px solid #F2F2F2;transition:background .1s}
 .ac-row:last-child{border-bottom:none}
 .ac-row:hover,.ac-row:active{background:var(--gl)}
@@ -51,6 +51,11 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .vtabs{display:flex;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
 .vtab{flex:1;padding:8px 4px;border:none;background:none;font-family:'Jost',sans-serif;font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);cursor:pointer;border-bottom:3px solid transparent;transition:all .15s}
 .vtab.active{color:var(--g);border-bottom-color:var(--g)}
+
+/* FILTER PILLS */
+.filter-bar{display:flex;gap:6px;padding:8px 12px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
+.fpill{background:none;border:1.5px solid var(--bd);border-radius:20px;padding:4px 11px;font-family:'Jost',sans-serif;font-size:11px;font-weight:500;color:var(--t2);cursor:pointer;white-space:nowrap;transition:all .15s}
+.fpill.active{background:var(--g);border-color:var(--g);color:#fff}
 
 /* SCROLL */
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -80,7 +85,7 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .scan-step{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .scan-step.off{display:none}
 
-/* Camera step */
+/* Camera */
 #cam-wrap{flex:1;position:relative;background:#000;overflow:hidden}
 #cam-video{width:100%;height:100%;object-fit:cover}
 #cam-guide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
@@ -95,10 +100,9 @@ body{font-family:'Jost',sans-serif;color:#141414}
 #btn-capture{width:66px;height:66px;border-radius:50%;border:3px solid #fff;background:var(--g);color:#fff;font-size:26px;cursor:pointer;transition:transform .1s,background .1s;display:flex;align-items:center;justify-content:center}
 #btn-capture:active{transform:scale(.9);background:var(--gd)}
 .btn-upload-lbl{color:rgba(255,255,255,.6);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:7px 13px;border:1px solid rgba(255,255,255,.25);border-radius:7px;transition:border-color .15s}
-.btn-upload-lbl:hover{border-color:rgba(255,255,255,.5)}
 #cam-fallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#111;color:rgba(255,255,255,.6);font-size:13px}
 
-/* Review step */
+/* Review */
 #review-thumb{height:90px;flex-shrink:0;background:#111;overflow:hidden}
 #review-thumb img{width:100%;height:100%;object-fit:contain}
 #ocr-prog{padding:10px 13px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
@@ -109,7 +113,7 @@ body{font-family:'Jost',sans-serif;color:#141414}
 #store-sel{flex:1;border:1.5px solid var(--bd);border-radius:8px;padding:8px 10px;font-family:'Jost',sans-serif;font-size:14px;color:var(--t1);background:#FAFAFA;outline:none}
 #store-sel:focus{border-color:var(--g)}
 
-/* Scan items list */
+/* Scan list */
 #scan-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .scan-hdr{display:flex;justify-content:space-between;align-items:center;padding:7px 13px;font-size:11px;color:var(--t2);background:#F5F5F5;border-bottom:1px solid var(--bd);flex-shrink:0}
 .scan-item{background:var(--sf);border-bottom:1px solid #F0F0F0;padding:9px 11px}
@@ -122,6 +126,8 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .price-pfx{padding:0 5px 0 8px;color:var(--t2);font-family:'Space Mono',monospace;font-size:12px}
 .si-price{width:56px;border:none;padding:7px 3px;font-family:'Space Mono',monospace;font-size:12px;color:var(--t1);outline:none;background:transparent}
 .si-unit{border:none;border-left:1px solid var(--bd);padding:7px 5px;font-family:'Jost',sans-serif;font-size:11px;color:var(--t2);background:transparent;outline:none}
+.si-count-sep{padding:0 3px 0 4px;color:var(--t3);font-size:10px;border-left:1px solid var(--bd);line-height:1;align-self:stretch;display:flex;align-items:center}
+.si-count{width:28px;border:none;padding:7px 2px;font-size:11px;background:transparent;outline:none;color:var(--t2);text-align:center;font-family:'Space Mono',monospace}
 .btn-link{flex:1;border:1.5px dashed var(--bd);border-radius:7px;padding:7px 9px;font-family:'Jost',sans-serif;font-size:11px;color:var(--t3);cursor:pointer;background:none;text-align:left;transition:all .15s;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .btn-link:hover{border-color:var(--b);color:var(--b)}
 .btn-link.linked{border-color:var(--g);border-style:solid;color:var(--g)}
@@ -139,8 +145,8 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .ic-store{font-size:10px;color:var(--t2)}
 .ic-arrow{font-size:13px;color:var(--t3);transition:transform .2s}
 .item-card.open .ic-arrow{transform:rotate(180deg)}
-.ic-prices{max-height:0;overflow:hidden;transition:max-height .25s ease;border-top:0px solid var(--bd)}
-.item-card.open .ic-prices{max-height:400px;border-top-width:1px}
+.ic-prices{max-height:0;overflow:hidden;transition:max-height .3s ease;border-top:0px solid var(--bd)}
+.item-card.open .ic-prices{max-height:500px;border-top-width:1px}
 .pr-row{display:flex;align-items:center;padding:8px 13px 8px 28px;gap:7px;border-bottom:1px solid #F7F7F7;font-size:12px}
 .pr-row:last-child{border-bottom:none}
 .pr-row.best{background:var(--gl)}
@@ -164,9 +170,9 @@ body{font-family:'Jost',sans-serif;color:#141414}
 #backdrop{position:fixed;inset:0;background:rgba(0,0,0,.48);z-index:49;opacity:0;pointer-events:none;transition:opacity .25s}
 #backdrop.on{opacity:1;pointer-events:all}
 
-/* LINK DRAWER */
-#link-drawer{position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;background:var(--sf);border-radius:16px 16px 0 0;z-index:50;transform:translateY(100%);transition:transform .3s cubic-bezier(.25,.8,.25,1);display:flex;flex-direction:column;max-height:72vh}
-#link-drawer.on{transform:translateY(0)}
+/* DRAWERS */
+#link-drawer,#edit-drawer{position:fixed;bottom:0;left:0;right:0;max-width:430px;margin:0 auto;background:var(--sf);border-radius:16px 16px 0 0;z-index:50;transform:translateY(100%);transition:transform .3s cubic-bezier(.25,.8,.25,1);display:flex;flex-direction:column;max-height:80vh}
+#link-drawer.on,#edit-drawer.on{transform:translateY(0)}
 .drw-handle{width:36px;height:4px;background:var(--bd);border-radius:2px;margin:11px auto;flex-shrink:0}
 .drw-hdr{padding:10px 15px 12px;display:flex;gap:8px;align-items:baseline;flex-shrink:0;border-bottom:1px solid var(--bd)}
 .drw-hdr b{font-size:14px;font-weight:600}
@@ -181,6 +187,19 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .link-muted{padding:14px;text-align:center;color:var(--t3);font-size:12px}
 #btn-link-create{margin:9px 12px;width:calc(100% - 24px);flex:none;flex-shrink:0}
 
+/* EDIT DRAWER BODY */
+#edit-body{overflow-y:auto;flex:1;padding:0 13px 8px;-webkit-overflow-scrolling:touch}
+.edit-section{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t3);margin:14px 0 7px}
+.edit-inp{width:100%;border:1.5px solid var(--bd);border-radius:8px;padding:9px 11px;font-family:'Jost',sans-serif;font-size:14px;color:var(--t1);outline:none;background:#FAFAFA;margin-bottom:4px}
+.edit-inp:focus{border-color:var(--g);background:#fff}
+.alias-row{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.alias-row input{flex:1;border:1px solid var(--bd);border-radius:7px;padding:7px 9px;font-family:'Jost',sans-serif;font-size:13px;color:var(--t1);outline:none;background:#FAFAFA}
+.alias-row input:focus{border-color:var(--g);background:#fff}
+.alias-del{background:none;border:none;color:var(--t3);font-size:17px;cursor:pointer;padding:3px 5px;flex-shrink:0}
+.edit-price-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.edit-store-name{flex:1;font-size:13px;color:var(--t2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drw-actions{display:flex;gap:8px;padding:10px 12px max(12px,env(safe-area-inset-bottom));border-top:1px solid var(--bd);flex-shrink:0;background:var(--sf)}
+
 /* STORE MODAL */
 #store-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);width:min(320px,88vw);background:var(--sf);border-radius:14px;padding:18px;z-index:50;opacity:0;pointer-events:none;transition:transform .2s,opacity .2s;box-shadow:0 8px 32px rgba(0,0,0,.18)}
 #store-modal.on{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:all}
@@ -189,7 +208,7 @@ body{font-family:'Jost',sans-serif;color:#141414}
 .modal-inp:focus{border-color:var(--g);background:#fff}
 .modal-btns{display:flex;gap:9px}
 
-/* HIDDEN / UTILS */
+/* UTILS */
 .h{display:none!important}
 .nd-txt{color:var(--t3)}
 canvas#cam-canvas{display:none}
@@ -205,8 +224,8 @@ canvas#cam-canvas{display:none}
       <button id="tb-back" class="tb-btn hidden" onclick="goBack()">&#8592;</button>
       <div id="tb-title">KONBI</div>
       <div id="tb-nav">
-        <button id="btn-scan" class="tb-btn" title="Scan receipt" onclick="goScan()">&#9635;</button>
-        <button id="btn-items" class="tb-btn" title="All items" onclick="goItems()">&#8801;</button>
+        <button class="tb-btn" title="Scan receipt" onclick="goScan()">&#9635;</button>
+        <button class="tb-btn" title="All items" onclick="goItems()">&#8801;</button>
       </div>
     </div>
   </div>
@@ -226,7 +245,6 @@ canvas#cam-canvas{display:none}
 
   <!-- SCREEN: SCAN -->
   <div id="screen-scan" class="screen">
-    <!-- Step 1: Camera -->
     <div id="step-cam" class="scan-step">
       <div id="cam-wrap">
         <video id="cam-video" autoplay playsinline muted></video>
@@ -241,7 +259,7 @@ canvas#cam-canvas{display:none}
       </div>
       <div id="cam-fallback" class="h">
         <p>Camera unavailable</p>
-        <label class="btn-p" for="file-input" style="cursor:pointer;padding:11px 20px;border-radius:8px">Upload Receipt Photo</label>
+        <label class="btn-p" for="file-input" style="cursor:pointer;padding:11px 20px;border-radius:8px">Upload Photo</label>
       </div>
       <div id="cam-controls">
         <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
@@ -253,7 +271,6 @@ canvas#cam-canvas{display:none}
       <input type="file" id="file-input" accept="image/*" class="h">
     </div>
 
-    <!-- Step 2: Review -->
     <div id="step-review" class="scan-step off">
       <div id="review-thumb"><img id="review-img" alt="receipt"></div>
       <div id="ocr-prog">
@@ -278,6 +295,11 @@ canvas#cam-canvas{display:none}
     <div class="search-wrap">
       <input id="items-search" class="main-input" type="text" placeholder="Search items&#8230;" autocomplete="off">
     </div>
+    <div class="filter-bar">
+      <button class="fpill active" onclick="setFilter(this,'all')">All</button>
+      <button class="fpill" onclick="setFilter(this,'compare')">2+ stores &#128270;</button>
+      <button class="fpill" onclick="setFilter(this,'single')">1 store only</button>
+    </div>
     <div id="items-body" class="scroll"></div>
   </div>
 
@@ -296,6 +318,17 @@ canvas#cam-canvas{display:none}
     <button id="btn-link-create" class="btn-p fw" onclick="doCreateLink()">+ Create &amp; link as new item</button>
   </div>
 
+  <!-- EDIT DRAWER -->
+  <div id="edit-drawer">
+    <div class="drw-handle"></div>
+    <div class="drw-hdr"><b>Edit Item</b></div>
+    <div id="edit-body"></div>
+    <div class="drw-actions">
+      <button class="btn-s" onclick="closeEditItem()">Cancel</button>
+      <button class="btn-p" onclick="saveEditItem()">Save</button>
+    </div>
+  </div>
+
   <!-- STORE MODAL -->
   <div id="store-modal">
     <div class="modal-ttl">New Store</div>
@@ -309,95 +342,64 @@ canvas#cam-canvas{display:none}
 </div>
 <script>
 // ─── DATA ─────────────────────────────────────────────────────────────────────
-const KEY = 'konbi_v1';
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,5);
-const db = {
-  get(){ try{ return JSON.parse(localStorage.getItem(KEY)) || db.empty() }catch{ return db.empty() } },
-  set(d){ localStorage.setItem(KEY, JSON.stringify(d)) },
-  empty(){ return {stores:[],items:[],prices:[],list:[]} }
+const KEY='konbi_v1';
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const db={
+  get(){try{return JSON.parse(localStorage.getItem(KEY))||db.empty()}catch{return db.empty()}},
+  set(d){localStorage.setItem(KEY,JSON.stringify(d))},
+  empty(){return{stores:[],items:[],prices:[],list:[]}}
 };
 
-// Stores
-function addStore(name){
-  const d=db.get(), s={id:uid(),name:name.trim()};
-  d.stores.push(s); db.set(d); return s;
-}
-function getStores(){ return db.get().stores }
-function getStore(id){ return db.get().stores.find(s=>s.id===id) }
+function addStore(name){const d=db.get(),s={id:uid(),name:name.trim()};d.stores.push(s);db.set(d);return s}
+function getStores(){return db.get().stores}
+function getStore(id){return db.get().stores.find(s=>s.id===id)}
 
-// Items
-function addItem(name, aliases=[]){
-  const d=db.get(), it={id:uid(),name:name.trim(),aliases};
-  d.items.push(it); db.set(d); return it;
-}
-function getItems(){ return db.get().items.slice().sort((a,b)=>a.name.localeCompare(b.name)) }
-function addAlias(itemId, alias){
-  const d=db.get(), it=d.items.find(i=>i.id===itemId);
-  if(it){ if(!it.aliases) it.aliases=[]; if(!it.aliases.includes(alias)) it.aliases.push(alias); db.set(d) }
+function addItem(name,aliases=[]){const d=db.get(),it={id:uid(),name:name.trim(),aliases};d.items.push(it);db.set(d);return it}
+function getItems(){return db.get().items.slice().sort((a,b)=>a.name.localeCompare(b.name))}
+function addAlias(itemId,alias){
+  const d=db.get(),it=d.items.find(i=>i.id===itemId);
+  if(it){if(!it.aliases)it.aliases=[];if(!it.aliases.includes(alias))it.aliases.push(alias);db.set(d)}
 }
 function searchItems(q){
-  if(!q) return getItems();
+  if(!q)return getItems();
   const lq=q.toLowerCase();
   return db.get().items.filter(i=>
-    i.name.toLowerCase().includes(lq) ||
-    (i.aliases||[]).some(a=>a.toLowerCase().includes(lq))
+    i.name.toLowerCase().includes(lq)||(i.aliases||[]).some(a=>a.toLowerCase().includes(lq))
   ).sort((a,b)=>a.name.localeCompare(b.name));
 }
 
-// Prices
-function upsertPrice(itemId, storeId, price, unit){
+function upsertPrice(itemId,storeId,price,unit){
   const d=db.get();
   const ex=d.prices.find(p=>p.itemId===itemId&&p.storeId===storeId);
-  if(ex){ ex.prevPrice=ex.price; ex.price=price; ex.unit=unit; ex.date=Date.now() }
+  if(ex){ex.prevPrice=ex.price;ex.price=price;ex.unit=unit;ex.date=Date.now()}
   else d.prices.push({id:uid(),itemId,storeId,price,unit,date:Date.now(),prevPrice:null});
   db.set(d);
 }
-
-function trend(p){
-  if(!p.prevPrice||p.prevPrice===p.price) return '';
-  return p.price<p.prevPrice
-    ? `<span style="color:var(--g);font-size:9px;margin-left:2px">↓</span>`
-    : `<span style="color:var(--r);font-size:9px;margin-left:2px">↑</span>`;
-}
-
 function pricesFor(itemId){
   const d=db.get();
   return d.prices.filter(p=>p.itemId===itemId)
     .sort((a,b)=>a.price-b.price)
-    .map(p=>({...p, storeName:(getStore(p.storeId)||{name:'Unknown'}).name}));
+    .map(p=>({...p,storeName:(getStore(p.storeId)||{name:'Unknown'}).name}));
 }
-function cheapest(itemId){ return pricesFor(itemId)[0]||null }
+function cheapest(itemId){return pricesFor(itemId)[0]||null}
 
-// List
-function addToList(itemId){
-  const d=db.get();
-  if(!d.list.find(l=>l.itemId===itemId)) d.list.push({id:uid(),itemId,done:false});
-  db.set(d);
-}
-function toggleDone(id){
-  const d=db.get(), l=d.list.find(x=>x.id===id);
-  if(l){ l.done=!l.done; db.set(d) }
-}
-function removeFromList(id){ const d=db.get(); d.list=d.list.filter(l=>l.id!==id); db.set(d) }
-function getList(){
-  const d=db.get();
-  return d.list.map(l=>({...l, item:d.items.find(i=>i.id===l.itemId)}));
-}
+function addToList(itemId){const d=db.get();if(!d.list.find(l=>l.itemId===itemId))d.list.push({id:uid(),itemId,done:false});db.set(d)}
+function toggleDone(id){const d=db.get(),l=d.list.find(x=>x.id===id);if(l){l.done=!l.done;db.set(d)}}
+function removeFromList(id){const d=db.get();d.list=d.list.filter(l=>l.id!==id);db.set(d)}
+function getList(){const d=db.get();return d.list.map(l=>({...l,item:d.items.find(i=>i.id===l.itemId)}))}
 
 // ─── CAMERA / OCR ─────────────────────────────────────────────────────────────
 let camStream=null;
 async function startCamera(){
   try{
     camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}}});
-    const v=document.getElementById('cam-video');
-    v.srcObject=camStream; return true;
-  }catch(e){ return false }
+    document.getElementById('cam-video').srcObject=camStream;return true;
+  }catch(e){return false}
 }
-function stopCamera(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null } }
+function stopCamera(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null}}
 function grabFrame(){
-  const v=document.getElementById('cam-video');
-  const c=document.getElementById('cam-canvas');
-  c.width=v.videoWidth||1280; c.height=v.videoHeight||720;
+  const v=document.getElementById('cam-video'),c=document.getElementById('cam-canvas');
+  c.width=v.videoWidth||1280;c.height=v.videoHeight||720;
   c.getContext('2d').drawImage(v,0,0);
   return c.toDataURL('image/jpeg',.92);
 }
@@ -408,50 +410,41 @@ function detectReceiptBounds(canvas){
   const BRIGHT=205,STEP=6;
   const cols=new Int32Array(w),rows=new Int32Array(h);
   let hits=0;
-  for(let y=0;y<h;y+=STEP) for(let x=0;x<w;x+=STEP){
+  for(let y=0;y<h;y+=STEP)for(let x=0;x<w;x+=STEP){
     const i=(y*w+x)*4;
     if((d[i]+d[i+1]+d[i+2])/3>BRIGHT){cols[x]++;rows[y]++;hits++}
   }
-  if(hits<100) return {x:0,y:0,w,h};
+  if(hits<100)return{x:0,y:0,w,h};
   const ct=(h/STEP)*0.3,rt=(w/STEP)*0.3;
   let l=0,r=w-1,t=0,b=h-1;
-  for(let x=0;x<w;x++) if(cols[x]>ct){l=x;break}
-  for(let x=w-1;x>=0;x--) if(cols[x]>ct){r=x;break}
-  for(let y=0;y<h;y++) if(rows[y]>rt){t=y;break}
-  for(let y=h-1;y>=0;y--) if(rows[y]>rt){b=y;break}
-  if(r-l<w*0.08||b-t<h*0.05) return {x:0,y:0,w,h};
+  for(let x=0;x<w;x++)if(cols[x]>ct){l=x;break}
+  for(let x=w-1;x>=0;x--)if(cols[x]>ct){r=x;break}
+  for(let y=0;y<h;y++)if(rows[y]>rt){t=y;break}
+  for(let y=h-1;y>=0;y--)if(rows[y]>rt){b=y;break}
+  if(r-l<w*0.08||b-t<h*0.05)return{x:0,y:0,w,h};
   const pad=Math.round(Math.max(w,h)*0.01);
-  return {x:Math.max(0,l-pad),y:Math.max(0,t-pad),w:Math.min(w,r-l+pad*2),h:Math.min(h,b-t+pad*2)};
+  return{x:Math.max(0,l-pad),y:Math.max(0,t-pad),w:Math.min(w,r-l+pad*2),h:Math.min(h,b-t+pad*2)};
 }
-
 async function preprocessImage(dataUrl){
   return new Promise(res=>{
     const img=new Image();
     img.onload=()=>{
-      const MAX=2000;
-      let w=img.width,h=img.height;
+      const MAX=2000;let w=img.width,h=img.height;
       if(Math.max(w,h)>MAX){const s=MAX/Math.max(w,h);w=Math.round(w*s);h=Math.round(h*s)}
-      const c=document.createElement('canvas');
-      c.width=w;c.height=h;
+      const c=document.createElement('canvas');c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
       const bnd=detectReceiptBounds(c);
-      const c2=document.createElement('canvas');
-      c2.width=bnd.w;c2.height=bnd.h;
+      const c2=document.createElement('canvas');c2.width=bnd.w;c2.height=bnd.h;
       const ctx2=c2.getContext('2d');
       ctx2.drawImage(c,bnd.x,bnd.y,bnd.w,bnd.h,0,0,bnd.w,bnd.h);
-      const id=ctx2.getImageData(0,0,bnd.w,bnd.h),d=id.data;
-      for(let i=0;i<d.length;i+=4){
-        const g=Math.round(0.299*d[i]+0.587*d[i+1]+0.114*d[i+2]);
-        d[i]=d[i+1]=d[i+2]=g;d[i+3]=255;
-      }
+      const id=ctx2.getImageData(0,0,bnd.w,bnd.h),dp=id.data;
+      for(let i=0;i<dp.length;i+=4){const g=Math.round(0.299*dp[i]+0.587*dp[i+1]+0.114*dp[i+2]);dp[i]=dp[i+1]=dp[i+2]=g;dp[i+3]=255}
       ctx2.putImageData(id,0,0);
       res(c2.toDataURL('image/png'));
     };
-    img.onerror=()=>res(dataUrl);
-    img.src=dataUrl;
+    img.onerror=()=>res(dataUrl);img.src=dataUrl;
   });
 }
-
 async function runOCR(src,onProg){
   const processed=await preprocessImage(src);
   const result=await Tesseract.recognize(processed,'eng',{
@@ -460,11 +453,10 @@ async function runOCR(src,onProg){
   return result.data.text;
 }
 
-// ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
+// ─── PARSERS ──────────────────────────────────────────────────────────────────
 function parseReceipt(txt){
   const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
-  return /Qty:/i.test(txt)&&/@\s*\$/.test(txt)
-    ? parseAmazon(lines) : parsePhysical(txt);
+  return /Qty:/i.test(txt)&&/@\s*\$/.test(txt)?parseAmazon(lines):parsePhysical(txt);
 }
 
 function parseAmazon(lines){
@@ -476,19 +468,16 @@ function parseAmazon(lines){
     .replace(/\s+/g,' ').trim();
   for(let i=1;i<lines.length;i++){
     const line=lines[i];
-    if(!/@\s*\$/.test(line)||/tare/i.test(line)) continue;
-    // name line: everything before the "$total"
+    if(!/@\s*\$/.test(line)||/tare/i.test(line))continue;
     const nameRaw=(lines[i-1]||'').match(/^(.+?)\s*\$/);
-    if(!nameRaw) continue;
+    if(!nameRaw)continue;
     const name=cleanName(nameRaw[1]);
-    if(name.length<2) continue;
-    // price is the number after "@"
+    if(name.length<2)continue;
     const priceM=line.match(/@\s*\$(\d+\.?\d*)/);
-    if(!priceM) continue;
+    if(!priceM)continue;
     const price=parseFloat(priceM[1]);
-    // unit: check if "lb" appears before the "@"
     const unit=/lb/i.test(line.split('@')[0])?'lb':'unit';
-    if(price>0) items.push({name,price,unit,linkId:null,linkName:null});
+    if(price>0)items.push({name,price,unit,count:1,linkId:null,linkName:null});
   }
   return items;
 }
@@ -500,66 +489,32 @@ function parsePhysical(txt){
   const isBundle=l=>/\bfor\b/i.test(l)||/\d+for\b/i.test(l);
   const toPrice=s=>{
     let p=String(s).replace(',','.');
-    if(!p.includes('.')){
-      if(p.length>=3){const c=parseFloat(p.slice(0,-2)+'.'+p.slice(-2));if(c>=0.5&&c<500)return c}
-      return parseFloat(p);
-    }
-    if(!/\.\d{2}$/.test(p))p+='0';
-    return parseFloat(p);
+    if(!p.includes('.')){if(p.length>=3){const c=parseFloat(p.slice(0,-2)+'.'+p.slice(-2));if(c>=0.5&&c<500)return c}return parseFloat(p)}
+    if(!/\.\d{2}$/.test(p))p+='0';return parseFloat(p);
   };
-  const clean=n=>n
-    .replace(/^[^A-Za-z0-9]+/,'')
-    .replace(/^[A-Za-z]{1,2}\s+/,'')
-    .replace(/[^\x20-\x7E]/g,'')
-    .replace(/[^A-Za-z0-9\s&\-\/]/g,' ')
-    .replace(/\s+/g,' ').trim();
+  const clean=n=>n.replace(/^[^A-Za-z0-9]+/,'').replace(/^[A-Za-z]{1,2}\s+/,'').replace(/[^\x20-\x7E]/g,'').replace(/[^A-Za-z0-9\s&\-\/]/g,' ').replace(/\s+/g,' ').trim();
   const getRate=l=>{
-    const m1=l.match(/\$?(\d+[.,]?\d*)\s*\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i);
-    if(m1) return toPrice(m1[1]);
-    const m2=l.match(/(?:lb|1b)\s*\/\s*\$?(\d+[.,]?\d*)/i);
-    if(m2) return toPrice(m2[1]);
-    return null;
+    const m1=l.match(/\$?(\d+[.,]?\d*)\s*\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i);if(m1)return toPrice(m1[1]);
+    const m2=l.match(/(?:lb|1b)\s*\/\s*\$?(\d+[.,]?\d*)/i);if(m2)return toPrice(m2[1]);return null;
   };
-  const getPrice=l=>{
-    const s=l.replace(/\s+\bF\b[^A-Za-z0-9]*$/,'');
-    const m=s.match(/\$?(\d+(?:[.,]\d+)?)\s*$/);
-    return m?toPrice(m[1]):null;
-  };
-  const lookBackName=(lines,i)=>{
-    for(let j=i-1;j>=Math.max(0,i-3);j--){
-      const p=lines[j];
-      if(!hasF(p)&&/[A-Za-z]{2}/.test(p)) return clean(p);
-    }
-    return '';
-  };
+  const getPrice=l=>{const s=l.replace(/\s+\bF\b[^A-Za-z0-9]*$/,'');const m=s.match(/\$?(\d+(?:[.,]\d+)?)\s*$/);return m?toPrice(m[1]):null};
+  const lookBack=(lines,i)=>{for(let j=i-1;j>=Math.max(0,i-3);j--){const p=lines[j];if(!hasF(p)&&/[A-Za-z]{2}/.test(p))return clean(p)}return''};
   const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
   const items=[];
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
-    if(!hasF(line)) continue;
-    if(isBundle(line)) continue;
+    if(!hasF(line))continue;if(isBundle(line))continue;
     if(isWt(line)){
-      const name=lookBackName(lines,i);
-      const rate=getRate(line);
-      if(name.length>=2&&rate&&rate>0)
-        items.push({name,price:rate,unit:'lb',linkId:null,linkName:null});
-    } else if(isUnitQty(line)){
-      // e.g. "2 @ 3.99 F" — name is on previous line
-      const name=lookBackName(lines,i);
-      const m=line.match(/@\s*\$?(\d+[.,]\d{1,2})/);
-      if(m){
-        const price=toPrice(m[1]);
-        if(name.length>=2&&price>0)
-          items.push({name,price,unit:'unit',linkId:null,linkName:null});
-      }
-    } else {
-      const price=getPrice(line);
-      if(!price||price<=0||price>=500) continue;
+      const name=lookBack(lines,i),rate=getRate(line);
+      if(name.length>=2&&rate&&rate>0)items.push({name,price:rate,unit:'lb',count:1,linkId:null,linkName:null});
+    }else if(isUnitQty(line)){
+      const name=lookBack(lines,i),m=line.match(/@\s*\$?(\d+[.,]\d{1,2})/);
+      if(m){const price=toPrice(m[1]);if(name.length>=2&&price>0)items.push({name,price,unit:'unit',count:1,linkId:null,linkName:null})}
+    }else{
+      const price=getPrice(line);if(!price||price<=0||price>=500)continue;
       const s=line.replace(/\s+\bF\b[^A-Za-z0-9]*$/,'');
-      const nameRaw=s.replace(/\s+\$?\d+(?:[.,]\d+)?\s*$/,'');
-      const name=clean(nameRaw);
-      if(name.length>=2)
-        items.push({name,price,unit:'unit',linkId:null,linkName:null});
+      const name=clean(s.replace(/\s+\$?\d+(?:[.,]\d+)?\s*$/,''));
+      if(name.length>=2)items.push({name,price,unit:'unit',count:1,linkId:null,linkName:null});
     }
   }
   return items;
@@ -567,35 +522,45 @@ function parsePhysical(txt){
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let scanItems=[],lastOCRText='',appendMode=false;
+let editItemId=null,editData={};
+let itemsFilter='all';
 
 function scanMore(){appendMode=true;goScan()}
 
+function autoLink(name){
+  if(!name)return{linkId:null,linkName:null};
+  const d=db.get(),nl=name.toLowerCase();
+  const match=d.items.find(i=>i.name.toLowerCase()===nl||(i.aliases||[]).some(a=>a.toLowerCase()===nl));
+  return match?{linkId:match.id,linkName:match.name}:{linkId:null,linkName:null};
+}
+
+function trend(p){
+  if(!p.prevPrice||p.prevPrice===p.price)return'';
+  return p.price<p.prevPrice
+    ?`<span style="color:var(--g);font-size:9px;margin-left:2px">&#8595;</span>`
+    :`<span style="color:var(--r);font-size:9px;margin-left:2px">&#8593;</span>`;
+}
+
 // ─── RENDER: LIST ─────────────────────────────────────────────────────────────
 function renderList(){
-  const list=getList();
-  const view=document.querySelector('.vtab.active')?.dataset.v||'list';
-  const el=document.getElementById('list-body');
-  if(!list.length){ el.innerHTML='<div class="empty">Your list is empty.<br>Type above to add items.</div>'; return }
-  el.innerHTML = view==='store' ? renderByStore(list) : renderFlat(list);
+  const list=getList(),view=document.querySelector('.vtab.active')?.dataset.v||'list',el=document.getElementById('list-body');
+  if(!list.length){el.innerHTML='<div class="empty">Your list is empty.<br>Type above to add items.</div>';return}
+  el.innerHTML=view==='store'?renderByStore(list):renderFlat(list);
 }
 function renderFlat(list){
   return list.map(e=>{
-    if(!e.item) return '';
+    if(!e.item)return'';
     const c=cheapest(e.item.id);
-    const sub=c?`$${c.price.toFixed(2)}/${c.unit} · ${c.storeName}`:'no price data';
-    const subCls=c?'row-sub':'row-sub nd';
-    return rowHtml(e, e.item.name, sub, subCls);
+    return rowHtml(e,e.item.name,c?`$${c.price.toFixed(2)}/${c.unit} · ${c.storeName}`:'no price data',c?'row-sub':'row-sub nd');
   }).join('');
 }
 function renderByStore(list){
-  const groups={}, nodata=[];
+  const groups={},nodata=[];
   list.forEach(e=>{
-    if(!e.item) return;
+    if(!e.item)return;
     const c=cheapest(e.item.id);
-    if(c){
-      if(!groups[c.storeId]) groups[c.storeId]={name:c.storeName,entries:[]};
-      groups[c.storeId].entries.push({e,price:c.price,unit:c.unit});
-    } else nodata.push(e);
+    if(c){if(!groups[c.storeId])groups[c.storeId]={name:c.storeName,entries:[]};groups[c.storeId].entries.push({e,price:c.price,unit:c.unit})}
+    else nodata.push(e);
   });
   let html='';
   Object.values(groups).forEach(g=>{
@@ -611,7 +576,7 @@ function renderByStore(list){
   return html;
 }
 function rowHtml(e,name,sub,subCls){
-  return `<div class="list-row${e.done?' done':''}">
+  return`<div class="list-row${e.done?' done':''}">
     <div class="chkbox${e.done?' on':''}" onclick="toggleCheck('${e.id}')"></div>
     <div class="row-body" onclick="toggleCheck('${e.id}')">
       <div class="row-name">${esc(name)}</div>
@@ -622,39 +587,101 @@ function rowHtml(e,name,sub,subCls){
 }
 
 // ─── RENDER: ALL ITEMS ────────────────────────────────────────────────────────
+function setFilter(btn,f){
+  document.querySelectorAll('.fpill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');itemsFilter=f;
+  renderItems(document.getElementById('items-search').value);
+}
 function renderItems(filter=''){
-  const items=filter?searchItems(filter):getItems();
+  let items=filter?searchItems(filter):getItems();
+  if(itemsFilter==='compare')items=items.filter(i=>pricesFor(i.id).length>=2);
+  else if(itemsFilter==='single')items=items.filter(i=>pricesFor(i.id).length===1);
   const el=document.getElementById('items-body');
-  if(!items.length){ el.innerHTML=`<div class="empty">${filter?'No matching items.':'No items yet.<br>Scan a receipt to get started.'}</div>`; return }
+  if(!items.length){el.innerHTML=`<div class="empty">${filter||itemsFilter!=='all'?'No matching items.':'No items yet.<br>Scan a receipt to get started.'}</div>`;return}
   el.innerHTML=items.map(item=>{
-    const prices=pricesFor(item.id);
-    const best=prices[0];
-    return `<div class="item-card" data-id="${item.id}">
+    const prices=pricesFor(item.id),best=prices[0];
+    return`<div class="item-card" data-id="${item.id}">
       <div class="ic-main" onclick="toggleCard('${item.id}')">
         <div class="ic-name">${esc(item.name)}</div>
         <div class="ic-right">
-          ${best?`<span class="ptag">$${best.price.toFixed(2)}<span class="pu">/${best.unit}</span></span>${trend(best)}<span class="ic-store">${esc(best.storeName)}</span>`
-:'<span class="nd-txt" style="font-size:11px">no data</span>'}
+          ${best?`<span class="ptag">$${best.price.toFixed(2)}<span class="pu">/${best.unit}</span></span>${trend(best)}<span class="ic-store">${esc(best.storeName)}</span>`:'<span class="nd-txt" style="font-size:11px">no data</span>'}
           <span class="ic-arrow">&#9662;</span>
         </div>
       </div>
       <div class="ic-prices">
-        ${prices.length?prices.map((p,i)=>`
+        ${prices.map((p,i)=>`
           <div class="pr-row${i===0?' best':''}">
             <span class="pr-rank">${i===0?'&#9733;':i+1}</span>
             <span class="pr-store">${esc(p.storeName)}</span>
             <span class="pr-val">$${p.price.toFixed(2)}/${p.unit}${trend(p)}</span>
-          </div>`).join(''):'<div class="pr-row"><span class="pr-store nd-txt">No prices recorded</span></div>'}
-      <div style="padding:6px 13px 10px;text-align:right;border-top:1px solid #F5F5F5">
-          <button onclick="event.stopPropagation();deleteItem('${item.id}')" style="background:none;border:none;color:var(--r);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:4px 0">Delete item &amp; all prices</button>
+          </div>`).join('')||'<div class="pr-row"><span class="pr-store nd-txt">No prices recorded</span></div>'}
+        <div style="display:flex;justify-content:flex-end;gap:14px;padding:8px 13px 10px;border-top:1px solid #F5F5F5">
+          <button onclick="event.stopPropagation();openEditItem('${item.id}')" style="background:none;border:none;color:var(--b);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:4px 0">Edit</button>
+          <button onclick="event.stopPropagation();deleteItem('${item.id}')" style="background:none;border:none;color:var(--r);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:4px 0">Delete</button>
         </div>
       </div>
     </div>`;
   }).join('');
 }
-function toggleCard(id){
-  const c=document.querySelector(`.item-card[data-id="${id}"]`);
-  if(c) c.classList.toggle('open');
+function toggleCard(id){document.querySelector(`.item-card[data-id="${id}"]`)?.classList.toggle('open')}
+
+// ─── EDIT ITEM ────────────────────────────────────────────────────────────────
+function openEditItem(id){
+  editItemId=id;
+  const d=db.get(),item=d.items.find(i=>i.id===id);
+  if(!item)return;
+  editData={
+    name:item.name,
+    aliases:[...(item.aliases||[])],
+    prices:d.prices.filter(p=>p.itemId===id).map(p=>({...p,storeName:(getStore(p.storeId)||{name:'Unknown'}).name}))
+  };
+  renderEditBody();
+  document.getElementById('edit-drawer').classList.add('on');
+  document.getElementById('backdrop').classList.add('on');
+}
+function renderEditBody(){
+  document.getElementById('edit-body').innerHTML=`
+    <div class="edit-section">Name</div>
+    <input id="edit-name" class="edit-inp" value="${esc(editData.name)}" placeholder="Item name">
+    <div class="edit-section">Aliases <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--t3);font-size:10px">— other names this item scans as</span></div>
+    ${editData.aliases.map((a,i)=>`
+      <div class="alias-row">
+        <input value="${esc(a)}" onchange="editData.aliases[${i}]=this.value" placeholder="Alias name">
+        <button class="alias-del" onclick="editData.aliases.splice(${i},1);renderEditBody()">&#215;</button>
+      </div>`).join('')}
+    <button class="btn-xs" onclick="editData.aliases.push('');renderEditBody()" style="margin-bottom:14px">+ Add alias</button>
+    <div class="edit-section">Prices</div>
+    ${editData.prices.length?editData.prices.map((p,i)=>`
+      <div class="edit-price-row">
+        <span class="edit-store-name">${esc(p.storeName)}</span>
+        <div class="price-grp">
+          <span class="price-pfx">$</span>
+          <input type="number" class="si-price" step=".01" min="0" value="${p.price.toFixed(2)}" onchange="editData.prices[${i}].price=parseFloat(this.value)||0">
+          <select class="si-unit" onchange="editData.prices[${i}].unit=this.value">
+            <option value="unit"${p.unit==='unit'?' selected':''}>/ unit</option>
+            <option value="lb"${p.unit==='lb'?' selected':''}>/lb</option>
+            <option value="oz"${p.unit==='oz'?' selected':''}>/oz</option>
+            <option value="kg"${p.unit==='kg'?' selected':''}>/kg</option>
+          </select>
+        </div>
+      </div>`).join(''):'<p style="font-size:12px;color:var(--t3);margin-bottom:8px">No prices saved yet.</p>'}
+  `;
+}
+function saveEditItem(){
+  if(!editItemId)return;
+  const d=db.get(),item=d.items.find(i=>i.id===editItemId);
+  if(!item)return;
+  const newName=document.getElementById('edit-name').value.trim();
+  if(newName)item.name=newName;
+  item.aliases=editData.aliases.map(a=>a.trim()).filter(Boolean);
+  editData.prices.forEach(ep=>{const pr=d.prices.find(p=>p.id===ep.id);if(pr){pr.price=ep.price;pr.unit=ep.unit}});
+  db.set(d);closeEditItem();
+  renderItems(document.getElementById('items-search').value);
+}
+function closeEditItem(){
+  document.getElementById('edit-drawer').classList.remove('on');
+  document.getElementById('backdrop').classList.remove('on');
+  editItemId=null;editData={};
 }
 
 // ─── RENDER: SCAN ─────────────────────────────────────────────────────────────
@@ -688,6 +715,10 @@ function renderScanItems(){
             <option value="oz"${it.unit==='oz'?' selected':''}>/oz</option>
             <option value="kg"${it.unit==='kg'?' selected':''}>/kg</option>
           </select>
+          <span class="si-count-sep">&#247;</span>
+          <input type="number" class="si-count" min="1" step="1" value="${it.count||1}"
+            onfocus="this.select()"
+            onchange="updScan(${i},'count',Math.max(1,parseInt(this.value)||1))">
         </div>
         <button class="btn-link${it.linkId?' linked':''}" onclick="openLink(${i})">${it.linkId?'&#128279; '+esc(it.linkName):'+ Link'}</button>
       </div>
@@ -698,9 +729,8 @@ function renderStoreSelect(){
   sel.innerHTML='<option value="">Select store&#8230;</option>'+getStores().map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
 }
 function renderLinkList(q){
-  const items=searchItems(q);
-  const el=document.getElementById('link-list');
-  if(!items.length){ el.innerHTML='<div class="link-muted">No matches &#8212; use button below to create</div>'; return }
+  const items=searchItems(q),el=document.getElementById('link-list');
+  if(!items.length){el.innerHTML='<div class="link-muted">No matches &#8212; use button below to create</div>';return}
   el.innerHTML=items.slice(0,30).map(it=>`
     <div class="link-row" onclick="selectLink('${it.id}','${esc(it.name).replace(/'/g,"\\'")}')">
       <span>${esc(it.name)}</span>
@@ -709,12 +739,22 @@ function renderLinkList(q){
 }
 
 // ─── ACTIONS ──────────────────────────────────────────────────────────────────
-function updScan(i,k,v){ scanItems[i][k]=v }
-function delScanRow(i){ scanItems.splice(i,1); renderScanItems() }
-function addManualRow(){ scanItems.push({name:'',price:0,unit:'unit',linkId:null,linkName:null}); renderScanItems() }
+function updScan(i,k,v){scanItems[i][k]=v}
+function delScanRow(i){scanItems.splice(i,1);renderScanItems()}
+function addManualRow(){scanItems.push({name:'',price:0,unit:'unit',count:1,linkId:null,linkName:null});renderScanItems()}
+
+function deleteItem(id){
+  if(!confirm('Delete this item and all its prices?'))return;
+  const d=db.get();
+  d.items=d.items.filter(i=>i.id!==id);
+  d.prices=d.prices.filter(p=>p.itemId!==id);
+  d.list=d.list.filter(l=>l.itemId!==id);
+  db.set(d);
+  renderItems(document.getElementById('items-search').value);
+}
 
 function openLink(i){
-  linkIdx=i;
+  window._linkIdx=i;
   document.getElementById('link-scanned').textContent=`"${scanItems[i].name}"`;
   document.getElementById('link-input').value='';
   renderLinkList('');
@@ -724,20 +764,20 @@ function openLink(i){
 function closeLink(){
   document.getElementById('link-drawer').classList.remove('on');
   document.getElementById('backdrop').classList.remove('on');
-  linkIdx=null;
+  window._linkIdx=null;
 }
-function selectLink(id, name){
-  if(linkIdx===null) return;
-  scanItems[linkIdx].linkId=id; scanItems[linkIdx].linkName=name;
-  closeLink(); renderScanItems();
+function selectLink(id,name){
+  const i=window._linkIdx;if(i==null)return;
+  scanItems[i].linkId=id;scanItems[i].linkName=name;
+  closeLink();renderScanItems();
 }
 function doCreateLink(){
-  if(linkIdx===null) return;
-  const q=document.getElementById('link-input').value.trim()||scanItems[linkIdx].name;
-  if(!q) return;
+  const i=window._linkIdx;if(i==null)return;
+  const q=document.getElementById('link-input').value.trim()||scanItems[i].name;
+  if(!q)return;
   const it=addItem(q);
-  if(q!==scanItems[linkIdx].name&&scanItems[linkIdx].name) addAlias(it.id,scanItems[linkIdx].name);
-  selectLink(it.id, it.name);
+  if(q!==scanItems[i].name&&scanItems[i].name)addAlias(it.id,scanItems[i].name);
+  selectLink(it.id,it.name);
 }
 function openStoreModal(){
   document.getElementById('store-inp').value='';
@@ -750,69 +790,48 @@ function closeStoreModal(){
   document.getElementById('backdrop').classList.remove('on');
 }
 function doAddStore(){
-  const name=document.getElementById('store-inp').value.trim();
-  if(!name) return;
-  const s=addStore(name);
-  renderStoreSelect();
+  const name=document.getElementById('store-inp').value.trim();if(!name)return;
+  const s=addStore(name);renderStoreSelect();
   document.getElementById('store-sel').value=s.id;
   closeStoreModal();
 }
-function closeAll(){
-  closeLink();
-  closeStoreModal();
-}
-
-function autoLink(name){
-  if(!name) return {linkId:null,linkName:null};
-  const d=db.get(),nl=name.toLowerCase();
-  const match=d.items.find(i=>
-    i.name.toLowerCase()===nl||
-    (i.aliases||[]).some(a=>a.toLowerCase()===nl)
-  );
-  return match?{linkId:match.id,linkName:match.name}:{linkId:null,linkName:null};
-}
-
-function deleteItem(id){
-  if(!confirm('Delete this item and all its prices?')) return;
-  const d=db.get();
-  d.items=d.items.filter(i=>i.id!==id);
-  d.prices=d.prices.filter(p=>p.itemId!==id);
-  d.list=d.list.filter(l=>l.itemId!==id);
-  db.set(d);
-  renderItems(document.getElementById('items-search').value);
-}
+function closeAll(){closeLink();closeStoreModal();closeEditItem()}
 
 function doSave(){
   const sid=document.getElementById('store-sel').value;
-  if(!sid){ alert('Please select a store first.'); return }
+  if(!sid){alert('Please select a store first.');return}
   let n=0;
   scanItems.forEach(it=>{
-    if(!it.name||it.price<=0) return;
+    if(!it.name||it.price<=0)return;
+    const finalPrice=it.price/Math.max(1,it.count||1);
     let iid=it.linkId;
-    if(!iid){
-      const ni=addItem(it.name);
-      iid=ni.id;
-    } else {
-      const d=db.get(), ci=d.items.find(x=>x.id===iid);
-      if(ci&&ci.name!==it.name&&it.name) addAlias(iid,it.name);
-    }
-    upsertPrice(iid,sid,it.price,it.unit);
-    n++;
+    if(!iid){const ni=addItem(it.name);iid=ni.id}
+    else{const d=db.get(),ci=d.items.find(x=>x.id===iid);if(ci&&ci.name!==it.name&&it.name)addAlias(iid,it.name)}
+    upsertPrice(iid,sid,finalPrice,it.unit);n++;
   });
-  if(!n){ alert('No valid items to save (check names and prices).'); return }
-  scanItems=[];
-  goBack();
+  if(!n){alert('No valid items to save (check names and prices).');return}
+  scanItems=[];goBack();
 }
 
-// Autocomplete
+// ─── AUTOCOMPLETE ─────────────────────────────────────────────────────────────
+function posAC(){
+  const inp=document.getElementById('item-input'),ac=document.getElementById('autocomplete');
+  const r=inp.getBoundingClientRect();
+  const vvh=window.visualViewport?window.visualViewport.height:window.innerHeight;
+  ac.style.left=r.left+'px';
+  ac.style.width=r.width+'px';
+  ac.style.top=(r.bottom+2)+'px';
+  ac.style.maxHeight=Math.min(260,vvh-r.bottom-12)+'px';
+}
 function handleInput(val){
   const ac=document.getElementById('autocomplete');
-  if(!val.trim()){ ac.classList.add('h'); return }
+  if(!val.trim()){ac.classList.add('h');return}
   const matches=searchItems(val).slice(0,6);
   ac.innerHTML=matches.map(it=>{
     const c=cheapest(it.id);
-    return `<div class="ac-row" onclick="addExisting('${it.id}')"><span>${esc(it.name)}</span>${c?`<span class="ac-price">$${c.price.toFixed(2)}/${c.unit}</span>`:''}</div>`;
+    return`<div class="ac-row" onclick="addExisting('${it.id}')"><span>${esc(it.name)}</span>${c?`<span class="ac-price">$${c.price.toFixed(2)}/${c.unit}</span>`:''}</div>`;
   }).join('')+`<div class="ac-row ac-add" onclick="addNew()"><span>+ Add <strong>${esc(val)}</strong></span></div>`;
+  posAC();
   ac.classList.remove('h');
 }
 function addExisting(id){
@@ -822,13 +841,11 @@ function addExisting(id){
   renderList();
 }
 function addNew(){
-  const v=document.getElementById('item-input').value.trim();
-  if(!v) return;
-  const it=addItem(v);
-  addExisting(it.id);
+  const v=document.getElementById('item-input').value.trim();if(!v)return;
+  addExisting(addItem(v).id);
 }
-function toggleCheck(id){ toggleDone(id); renderList() }
-function delListItem(id){ removeFromList(id); renderList() }
+function toggleCheck(id){toggleDone(id);renderList()}
+function delListItem(id){removeFromList(id);renderList()}
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function showScreen(name){
@@ -838,31 +855,26 @@ function showScreen(name){
   document.getElementById('tb-back').classList.toggle('hidden',isMain);
   document.getElementById('tb-nav').classList.toggle('hidden',!isMain);
 }
-function goBack(){ stopCamera(); showScreen('list'); renderList() }
-function goItems(){ showScreen('items'); renderItems() }
+function goBack(){stopCamera();showScreen('list');renderList()}
+function goItems(){showScreen('items');renderItems()}
 async function goScan(){
   showScreen('scan');
   document.getElementById('step-cam').classList.remove('off');
   document.getElementById('step-review').classList.add('off');
   document.getElementById('cam-wrap').classList.remove('h');
   document.getElementById('cam-fallback').classList.add('h');
-
   const ok=await startCamera();
-  if(!ok){
-    document.getElementById('cam-wrap').classList.add('h');
-    document.getElementById('cam-fallback').classList.remove('h');
-  }
+  if(!ok){document.getElementById('cam-wrap').classList.add('h');document.getElementById('cam-fallback').classList.remove('h')}
 }
 async function doCapture(){
   try{
     const v=document.getElementById('cam-video');
-    if(!v.srcObject){ alert('Camera not ready.'); return }
-    if(v.readyState<2) await new Promise(r=>v.addEventListener('canplay',r,{once:true}));
+    if(!v.srcObject){alert('Camera not ready.');return}
+    if(v.readyState<2)await new Promise(r=>v.addEventListener('canplay',r,{once:true}));
     const img=grabFrame();
-    if(!img||img.length<1000){ alert('Capture failed — try the Upload button.'); return }
-    stopCamera();
-    switchToReview(img);
-  }catch(e){ alert('Could not capture: '+e.message+'\nTry the Upload button.') }
+    if(!img||img.length<1000){alert('Capture failed — try the Upload button.');return}
+    stopCamera();switchToReview(img);
+  }catch(e){alert('Could not capture: '+e.message+'\nTry the Upload button.')}
 }
 async function switchToReview(img){
   document.getElementById('step-cam').classList.add('off');
@@ -874,10 +886,9 @@ async function switchToReview(img){
   document.getElementById('ocr-prog-txt').textContent='Preprocessing image\u2026';
   document.getElementById('scan-list').innerHTML='';
   renderStoreSelect();
-  let rawText='';
   try{
     document.getElementById('ocr-prog-txt').textContent='Reading text\u2026';
-    rawText=await runOCR(img,p=>{
+    const rawText=await runOCR(img,p=>{
       document.getElementById('ocr-bar').style.width=p+'%';
       document.getElementById('ocr-prog-txt').textContent='Reading text\u2026 '+p+'%';
     });
@@ -885,54 +896,45 @@ async function switchToReview(img){
     const fresh=parseReceipt(rawText).map(it=>({...it,...autoLink(it.name)}));
     scanItems=appendMode?[...scanItems,...fresh]:fresh;
     appendMode=false;
-  }catch(e){
-    lastOCRText='OCR Error: '+e.message;
-    scanItems=[];
-  }
+  }catch(e){lastOCRText='OCR Error: '+e.message;scanItems=[]}
   prog.style.display='none';
   renderScanItems();
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
-  // List input
   const inp=document.getElementById('item-input');
   inp.addEventListener('input',e=>handleInput(e.target.value));
-  inp.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){ const ac=document.getElementById('autocomplete'); if(ac.classList.contains('h')) addNew() }
-  });
-  document.addEventListener('click',e=>{
-    if(!e.target.closest('.input-wrap')) document.getElementById('autocomplete').classList.add('h');
-  });
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){const ac=document.getElementById('autocomplete');if(ac.classList.contains('h'))addNew()}});
+  document.addEventListener('click',e=>{if(!e.target.closest('.input-wrap'))document.getElementById('autocomplete').classList.add('h')});
 
-  // View tabs
+  // Reposition autocomplete when keyboard resizes viewport
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize',()=>{
+      const ac=document.getElementById('autocomplete');
+      if(!ac.classList.contains('h'))posAC();
+    });
+  }
+
   document.querySelectorAll('.vtab').forEach(btn=>{
     btn.addEventListener('click',()=>{
       document.querySelectorAll('.vtab').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      renderList();
+      btn.classList.add('active');renderList();
     });
   });
 
-  // File upload fallback
   document.getElementById('file-input').addEventListener('change',e=>{
-    const f=e.target.files[0]; if(!f) return;
+    const f=e.target.files[0];if(!f)return;
     const r=new FileReader();
     r.onload=ev=>switchToReview(ev.target.result);
-    r.readAsDataURL(f);
-    e.target.value='';
+    r.readAsDataURL(f);e.target.value='';
   });
 
-  // Link drawer search
   document.getElementById('link-input').addEventListener('input',e=>renderLinkList(e.target.value));
-
-  // Store modal enter key
-  document.getElementById('store-inp').addEventListener('keydown',e=>{ if(e.key==='Enter') doAddStore() });
-
-  // All items search
+  document.getElementById('store-inp').addEventListener('keydown',e=>{if(e.key==='Enter')doAddStore()});
   document.getElementById('items-search').addEventListener('input',e=>renderItems(e.target.value));
 
   renderList();
