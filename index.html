@@ -422,17 +422,10 @@ async function preprocessImage(dataUrl){
 
 async function runOCR(src,onProg){
   const processed=await preprocessImage(src);
-  let worker;
-  try{
-    worker=await Tesseract.createWorker('eng',1,{
-      logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(Math.round(m.progress*100))}
-    });
-    await worker.setParameters({tessedit_pageseg_mode:'4'});
-    const {data:{text}}=await worker.recognize(processed);
-    return text;
-  }finally{
-    if(worker) worker.terminate().catch(()=>{});
-  }
+  const result=await Tesseract.recognize(processed,'eng',{
+    logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(Math.round(m.progress*100))}
+  });
+  return result.data.text;
 }
 
 // ─── RECEIPT PARSER ───────────────────────────────────────────────────────────
@@ -757,9 +750,7 @@ async function switchToReview(img){
     lastOCRText=rawText;
     scanItems=parseReceipt(rawText);
   }catch(e){
-    lastOCRText='';
-    document.getElementById('ocr-prog-txt').textContent='OCR failed: '+e.message;
-    prog.style.background='#FEE';
+    lastOCRText='OCR Error: '+e.message;
     scanItems=[];
   }
   prog.style.display='none';
