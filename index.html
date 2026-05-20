@@ -589,6 +589,9 @@ function renderItems(filter=''){
             <span class="pr-store">${esc(p.storeName)}</span>
             <span class="pr-val">$${p.price.toFixed(2)}/${p.unit}</span>
           </div>`).join(''):'<div class="pr-row"><span class="pr-store nd-txt">No prices recorded</span></div>'}
+      <div style="padding:6px 13px 10px;text-align:right;border-top:1px solid #F5F5F5">
+          <button onclick="event.stopPropagation();deleteItem('${item.id}')" style="background:none;border:none;color:var(--r);font-family:'Jost',sans-serif;font-size:12px;cursor:pointer;padding:4px 0">Delete item &amp; all prices</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -702,6 +705,27 @@ function closeAll(){
   closeLink();
   closeStoreModal();
 }
+
+function autoLink(name){
+  if(!name) return {linkId:null,linkName:null};
+  const d=db.get(),nl=name.toLowerCase();
+  const match=d.items.find(i=>
+    i.name.toLowerCase()===nl||
+    (i.aliases||[]).some(a=>a.toLowerCase()===nl)
+  );
+  return match?{linkId:match.id,linkName:match.name}:{linkId:null,linkName:null};
+}
+
+function deleteItem(id){
+  if(!confirm('Delete this item and all its prices?')) return;
+  const d=db.get();
+  d.items=d.items.filter(i=>i.id!==id);
+  d.prices=d.prices.filter(p=>p.itemId!==id);
+  d.list=d.list.filter(l=>l.itemId!==id);
+  db.set(d);
+  renderItems(document.getElementById('items-search').value);
+}
+
 function doSave(){
   const sid=document.getElementById('store-sel').value;
   if(!sid){ alert('Please select a store first.'); return }
@@ -802,7 +826,7 @@ async function switchToReview(img){
       document.getElementById('ocr-prog-txt').textContent='Reading text\u2026 '+p+'%';
     });
     lastOCRText=rawText;
-    const fresh=parseReceipt(rawText);
+    const fresh=parseReceipt(rawText).map(it=>({...it,...autoLink(it.name)}));
     scanItems=appendMode?[...scanItems,...fresh]:fresh;
     appendMode=false;
   }catch(e){
