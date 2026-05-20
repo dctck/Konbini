@@ -779,24 +779,17 @@ function renderScanItems(){
       ${it.isAmazon?`
       <div class="si-promo">
         <div class="si-promo-row">
-          <span>Total $</span>
-          <input type="number" step=".01" min="0" class="promo-inp" value="${(it.total||0).toFixed(2)}"
-            onchange="updScanAmazon(${i},'total',parseFloat(this.value)||0)">
-          <span>&#247;</span>
-          <input type="number" step=".01" min="0.01" class="promo-inp" value="${(it.qtyOrLbs||1).toFixed(it.unit==='unit'?0:2)}"
-            onchange="updScanAmazon(${i},'qtyOrLbs',parseFloat(this.value)||1)">
-          <span>${it.unit}</span>
-          <span>=</span>
-          <span class="promo-eff" id="peff-${i}">$${it.total&&it.qtyOrLbs?(it.total/it.qtyOrLbs).toFixed(2):'—'}</span>
-          ${it.origPrice?`<span class="promo-orig">$${it.origPrice.toFixed(2)}</span>`:''}
-          <button class="promo-toggle${it.promoOn?' on':''}" onclick="togglePromo(${i})">${it.promoOn?'PROMO ON':'+ PROMO'}</button>
+          <button class="promo-toggle${it.promoOn?' on':''}" onclick="togglePromo(${i})">${it.promoOn?'&#10003; Promo applied':'+ Promo'}</button>
+          ${it.promoOn?`
+            <input type="number" step=".01" min="0.01" class="promo-inp" value="${(it.qtyOrLbs||1).toFixed(it.unit==='lb'?2:0)}"
+              onfocus="this.select()" onchange="updScanAmazon(${i},'qtyOrLbs',parseFloat(this.value)||1)">
+            <span style="font-size:11px;color:var(--t3)">${it.unit}</span>
+            <span style="font-size:11px;color:var(--t3)">&#8722;$</span>
+            <input type="number" step=".01" min="0" class="promo-inp" value="${(it.promoAmt||0).toFixed(2)}"
+              onfocus="this.select()" onchange="updScanAmazon(${i},'promoAmt',parseFloat(this.value)||0)">
+            <span class="promo-eff" id="peff-${i}">= $${it.price.toFixed(2)}/${it.unit}</span>
+          `:''}
         </div>
-        ${it.promoOn?`<div class="si-promo-row">
-          <span style="color:var(--t3)">Promo&#8239;&#8722;$</span>
-          <input type="number" step=".01" min="0" class="promo-inp" value="${(it.promoAmt||0).toFixed(2)}"
-            onchange="updScanAmazon(${i},'promoAmt',parseFloat(this.value)||0)">
-          <span style="color:var(--t3);font-size:10px">applied</span>
-        </div>`:''}
       </div>`:''}
     </div>`).join('');
 }
@@ -851,7 +844,10 @@ function addManualRow(){scanItems.push({name:'',price:0,unit:'unit',count:1,link
 
 function recalcAmazonPrice(i){
   const it=scanItems[i];if(!it.isAmazon)return;
-  it.price=it.promoOn&&it.total&&it.qtyOrLbs?it.total/it.qtyOrLbs:(it.origPrice||it.price);
+  if(it.promoOn&&it.origPrice&&it.qtyOrLbs)
+    it.price=Math.max(0, it.origPrice-(it.promoAmt||0)/it.qtyOrLbs);
+  else
+    it.price=it.origPrice||it.price;
 }
 function togglePromo(i){
   scanItems[i].promoOn=!scanItems[i].promoOn;
@@ -1008,6 +1004,7 @@ async function doCapture(){
   }catch(e){alert('Could not capture: '+e.message+'\nTry the Upload button.')}
 }
 async function switchToReview(img){
+  stopCamera();
   document.getElementById('step-cam').classList.add('off');
   document.getElementById('step-review').classList.remove('off');
   document.getElementById('review-img').src=img;
