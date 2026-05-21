@@ -462,17 +462,24 @@ async function runOCR(src,onProg){
 // ─── PARSERS ──────────────────────────────────────────────────────────────────
 function parseReceipt(txt){
   const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
-  return /Qty:/i.test(txt)&&/@\s*\$/.test(txt)?parseAmazon(lines):parsePhysical(txt);
+  if(/Qty:/i.test(txt)&&/@\s*\$/.test(txt)) return parseAmazon(lines);
+  if(lines.filter(l=>/^\d{6,12}\s/.test(l)).length>3) return parseTarget(lines);
+  return parsePhysical(txt);
 }
 
 function parseAmazon(lines){
   const items=[];
-  const cleanName=n=>n
-    .replace(/^[^A-Za-z0-9]+/,'')
+  const cleanName=n=>{
+    let s=n.replace(/^(?:No\s+image(?:\s+available)?)\s*/i,'') // Amazon placeholder text
+           .replace(/^[^A-Za-z0-9]+/,'');
+    const capM=s.match(/([A-Z].+)/); // skip lowercase OCR artifacts, start at first capital
+    s=capM?capM[1]:s;
+    return s
     .replace(/^(?:PRODUCE|BAKERY|MEAT|SEAFOOD|DAIRY|DELI)\s+/i,'')
     .replace(/,\s*\d+\s*(?:count|each)$/i,'')
     .replace(/[^\x20-\x7E]/g,'')
     .replace(/\s+/g,' ').trim();
+  }
 
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
@@ -536,8 +543,34 @@ function parseAmazon(lines){
   return items;
 }
 
+function parseTarget(lines){
+  const items=[];
+  const skip=l=>/subtotal|total|tax|change|cash|credit|visa|master|savings|circle|auth|regular\s*price/i.test(l);
+  const toPrice=s=>{let p=String(s).replace(',','.');if(!p.includes('.')){if(p.length>=3){const c=parseFloat(p.slice(0,-2)+'.'+p.slice(-2));if(c>=0.5&&c<500)return c}return parseFloat(p)}if(!/\.\d{2}$/.test(p))p+='0';return parseFloat(p)};
+  const clean=n=>n.replace(/^[^A-Za-z0-9]+/,'').replace(/^[A-Za-z]{1,2}\s+/,'').replace(/[^\x20-\x7E]/g,'').replace(/[^A-Za-z0-9\s&\-\/]/g,' ').replace(/\s+/g,' ').trim();
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    const bm=line.match(/^\d{6,12}\s+(.*)/);
+    if(!bm)continue;
+    const rest=bm[1].trim();
+    if(skip(rest)||rest.length<3)continue;
+    // Format: NAME [BF|NF|T|F|B] $PRICE
+    const m=rest.match(/^(.*?)\s+(?:BF|NF|TF|T|F|B)\s+\$?([\d.,]+)\s*$/);
+    if(!m)continue;
+    const name=clean(m[1]);
+    const price=toPrice(m[2]);
+    if(name.length<2||price<=0||price>=500)continue;
+    // Unit price override: next line like "2 $1.25 ea"
+    const next=lines[i+1]||'';
+    const eaM=next.match(/\d+\s+\$?([\d.]+)\s+ea/i);
+    if(eaM){items.push({name,price:parseFloat(eaM[1]),unit:'unit',count:1,linkId:null,linkName:null});i++}
+    else items.push({name,price,unit:'unit',count:1,linkId:null,linkName:null});
+  }
+  return items;
+}
+
 function parsePhysical(txt){
-  const hasF=l=>/\bF\b[^A-Za-z0-9]*$/.test(l);
+  const hasF=l=>/\b(?:NF|F)\b[^A-Za-z0-9]*$/.test(l);
   const isWt=l=>/\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i.test(l)||/(?:lb|1b)\s*\/\s*\$?\d/i.test(l);
   const isUnitQty=l=>/^\d+\s*@\s*\$?\d/.test(l)&&!isWt(l);
   const isBundle=l=>/\bfor\b/i.test(l)||/\d+for\b/i.test(l);
