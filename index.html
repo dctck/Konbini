@@ -462,9 +462,7 @@ async function runOCR(src,onProg){
 // ─── PARSERS ──────────────────────────────────────────────────────────────────
 function parseReceipt(txt){
   const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
-  if(/Qty:/i.test(txt)&&/@\s*\$/.test(txt)) return parseAmazon(lines);
-  if(lines.filter(l=>/^\d{6,12}\s/.test(l)).length>3) return parseTarget(lines);
-  return parsePhysical(txt);
+  return /Qty:/i.test(txt)&&/@\s*\$/.test(txt)?parseAmazon(lines):parsePhysical(txt);
 }
 
 function parseAmazon(lines){
@@ -543,66 +541,117 @@ function parseAmazon(lines){
   return items;
 }
 
-function parseTarget(lines){
-  const items=[];
-  const skip=l=>/subtotal|total|tax|change|cash|credit|visa|master|savings|circle|auth|regular\s*price/i.test(l);
-  const toPrice=s=>{let p=String(s).replace(',','.');if(!p.includes('.')){if(p.length>=3){const c=parseFloat(p.slice(0,-2)+'.'+p.slice(-2));if(c>=0.5&&c<500)return c}return parseFloat(p)}if(!/\.\d{2}$/.test(p))p+='0';return parseFloat(p)};
-  const clean=n=>n.replace(/^[^A-Za-z0-9]+/,'').replace(/^[A-Za-z]{1,2}\s+/,'').replace(/[^\x20-\x7E]/g,'').replace(/[^A-Za-z0-9\s&\-\/]/g,' ').replace(/\s+/g,' ').trim();
-  for(let i=0;i<lines.length;i++){
-    const line=lines[i];
-    const bm=line.match(/^\d{6,12}\s+(.*)/);
-    if(!bm)continue;
-    const rest=bm[1].trim();
-    if(skip(rest)||rest.length<3)continue;
-    // Format: NAME [BF|NF|T|F|B] $PRICE
-    const m=rest.match(/^(.*?)\s+(?:BF|NF|TF|T|F|B)\s+\$?([\d.,]+)\s*$/);
-    if(!m)continue;
-    const name=clean(m[1]);
-    const price=toPrice(m[2]);
-    if(name.length<2||price<=0||price>=500)continue;
-    // Unit price override: next line like "2 $1.25 ea"
-    const next=lines[i+1]||'';
-    const eaM=next.match(/\d+\s+\$?([\d.]+)\s+ea/i);
-    if(eaM){items.push({name,price:parseFloat(eaM[1]),unit:'unit',count:1,linkId:null,linkName:null});i++}
-    else items.push({name,price,unit:'unit',count:1,linkId:null,linkName:null});
-  }
-  return items;
-}
+
 
 function parsePhysical(txt){
-  const hasF=l=>/\b(?:NF|F)\b[^A-Za-z0-9]*$/.test(l);
-  const isWt=l=>/\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i.test(l)||/(?:lb|1b)\s*\/\s*\$?\d/i.test(l);
-  const isUnitQty=l=>/^\d+\s*@\s*\$?\d/.test(l)&&!isWt(l);
-  const isBundle=l=>/\bfor\b/i.test(l)||/\d+for\b/i.test(l);
+  const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
+  const items=[],used=new Set();
+
+  const skipLine=l=>/\b(?:subtotal|sub.total|total|tax|change|cash|credit|debit|visa|master|amex|discover|balance\s*due|tender|savings?|coupon|deposit|cardsav|regprice|regular\s+price|auth\s*code|approved|receipt|invoice|thank|welcome|open\s*\d|store\s*#|phone|tel:|address|hours|number\s+of\s+items|reusable|bag\s+fee|pop\s+deposit|container\s+deposit|club\s*card|membership|points?|your\s+sav)\b/i.test(l)||/^[\$\*\-=]{2,}/.test(l);
+
   const toPrice=s=>{
     let p=String(s).replace(',','.');
-    if(!p.includes('.')){if(p.length>=3){const c=parseFloat(p.slice(0,-2)+'.'+p.slice(-2));if(c>=0.5&&c<500)return c}return parseFloat(p)}
-    if(!/\.\d{2}$/.test(p))p+='0';return parseFloat(p);
+    if(!p.includes('.')){if(p.length>=3){const c=parseFloat(p.slice(0,-2)+'.'+p.slice(-2));if(c>=0.25&&c<500)return c}return parseFloat(p)}
+    if(!/\.\d{2}$/.test(p))p+='0';
+    return parseFloat(p);
   };
-  const clean=n=>n.replace(/^[^A-Za-z0-9]+/,'').replace(/^[A-Za-z]{1,2}\s+/,'').replace(/[^\x20-\x7E]/g,'').replace(/[^A-Za-z0-9\s&\-\/]/g,' ').replace(/\s+/g,' ').trim();
-  const getRate=l=>{
-    const m1=l.match(/\$?(\d+[.,]?\d*)\s*\/\s*(?:\d+\s*)?(?:lb|1b|b)\b/i);if(m1)return toPrice(m1[1]);
-    const m2=l.match(/(?:lb|1b)\s*\/\s*\$?(\d+[.,]?\d*)/i);if(m2)return toPrice(m2[1]);return null;
+
+  // Strip known flag patterns from end of line
+  const stripFlags=l=>l
+    .replace(/\s+N\s+F\s*$/,'')              // Sprouts "N F"
+    .replace(/\s+(?:BF|NF|TF)\s*$/,'')       // two-char flags
+    .replace(/\s+[FTXBANE]\s*$/,'')           // single-char flags
+    .trimEnd();
+
+  // Extract price from end of line (after stripping flags)
+  const endPrice=line=>{
+    const s=stripFlags(line);
+    const m=s.match(/\$?\s*([\d,]+[.,]\d{1,2})\s*$/);
+    if(!m)return null;
+    if(/[\d]-\s*$/.test(s))return null; // credit line
+    const p=toPrice(m[1]);
+    return(p>=0.10&&p<1000)?p:null;
   };
-  const getPrice=l=>{const s=l.replace(/\s+\bF\b[^A-Za-z0-9]*$/,'');const m=s.match(/\$?(\d+(?:[.,]\d+)?)\s*$/);return m?toPrice(m[1]):null};
-  const lookBack=(lines,i)=>{for(let j=i-1;j>=Math.max(0,i-3);j--){const p=lines[j];if(!hasF(p)&&/[A-Za-z]{2}/.test(p))return clean(p)}return''};
-  const lines=txt.split('\n').map(l=>l.trim()).filter(Boolean);
-  const items=[];
+
+  // Extract per-unit/lb rate from a secondary detail line
+  const extractRate=l=>{
+    // Standard: "2.55 lb @ 1.49/lb" or "2.55 lb @ $1.49/ lb"
+    const m1=l.match(/\d+[.,]?\d*\s*(?:lb|lbs|kg|oz)\s*@\s*\$?([\d.,]+)\s*\/\s*(lb|lbs|kg|oz)/i);
+    if(m1)return{rate:toPrice(m1[1]),unit:/kg/i.test(m1[2])?'kg':/oz/i.test(m1[2])?'oz':'lb'};
+    // Walmart reversed: "1.24 lb @ 1 lb /0.78"
+    const m2=l.match(/\d+[.,]?\d*\s*(lb|kg)\s*@\s*1\s*(?:lb|kg)\s*\/\s*\$?([\d.,]+)/i);
+    if(m2)return{rate:toPrice(m2[2]),unit:m2[1].toLowerCase()};
+    // Trader Joe's unit: "12EA @ 0.19/EA" or "4OZ @ 0.89/OZ"
+    const m3=l.match(/\d+[.,]?\d*\s*(EA|OZ|LB|CT)\s*@\s*\$?([\d.,]+)\s*\/\s*(EA|OZ|LB|CT)/i);
+    if(m3)return{rate:toPrice(m3[2]),unit:m3[1].toLowerCase()==='lb'?'lb':m3[1].toLowerCase()==='oz'?'oz':'unit'};
+    return null;
+  };
+
+  const isDetailLine=l=>
+    /^\s*\d+[.,]?\d*\s*(?:lb|lbs|kg|oz|ea|ct)\s*@/i.test(l)||
+    /^\s*\d+\s*(?:EA|OZ|LB|CT)\s*@\s*\$?[\d.,]/i.test(l)||
+    /^regprice|^cardsav|^regular\s+price/i.test(l)||
+    /^\s*\d+\s*@\s*\d+\s+for\b/i.test(l);
+
+  const clean=n=>n
+    .replace(/^[^A-Za-z0-9]+/,'')
+    .replace(/^\d{6,15}\s+/,'')                    // long barcode at start (Target, Walmart)
+    .replace(/^(\d{1,5}\s+)+(?=[A-Za-z])/,'')      // short codes at start (Costco, Vons aisle)
+    .replace(/\s+\d{6,15}[A-Z]{0,2}(?=\s|$)/g,' ') // barcode in middle (Walmart)
+    .replace(/\s+(?:N\s+F|BF|NF|TF|[FTXBANE])\s*$/,'') // trailing flag left in name
+    .replace(/[^\x20-\x7E]/g,'')
+    .replace(/[^A-Za-z0-9\s&\-\/'.,]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+
   for(let i=0;i<lines.length;i++){
+    if(used.has(i))continue;
     const line=lines[i];
-    if(!hasF(line))continue;if(isBundle(line))continue;
-    if(isWt(line)){
-      const name=lookBack(lines,i),rate=getRate(line);
-      if(name.length>=2&&rate&&rate>0)items.push({name,price:rate,unit:'lb',count:1,linkId:null,linkName:null});
-    }else if(isUnitQty(line)){
-      const name=lookBack(lines,i),m=line.match(/@\s*\$?(\d+[.,]\d{1,2})/);
-      if(m){const price=toPrice(m[1]);if(name.length>=2&&price>0)items.push({name,price,unit:'unit',count:1,linkId:null,linkName:null})}
-    }else{
-      const price=getPrice(line);if(!price||price<=0||price>=500)continue;
-      const s=line.replace(/\s+\bF\b[^A-Za-z0-9]*$/,'');
-      const name=clean(s.replace(/\s+\$?\d+(?:[.,]\d+)?\s*$/,''));
-      if(name.length>=2)items.push({name,price,unit:'unit',count:1,linkId:null,linkName:null});
+    if(line.length<3||skipLine(line))continue;
+    // Section headers: all-caps, no digits/price
+    if(/^[A-Z][A-Z\s\/]{2,25}$/.test(line)&&!/[\d$]/.test(line))continue;
+    if(isDetailLine(line))continue;
+
+    const next=lines[i+1]||'';
+
+    // ── BY-WEIGHT: rate on next line ──────────────────────────────────
+    const rd=extractRate(next);
+    if(rd&&!skipLine(next)){
+      const nameRaw=line.replace(/\s*\$?\s*[\d,]+[.,]\d{1,2}\s*(?:\s+[A-Z]{0,3}\s*)?$/,'');
+      const name=clean(nameRaw);
+      if(name.length>=2&&rd.rate>0){
+        items.push({name,price:rd.rate,unit:rd.unit,count:1,linkId:null,linkName:null});
+        used.add(i+1);
+      }
+      continue;
     }
+
+    // ── VONS-STYLE: name on this line (no price), price on next RegPrice line ──
+    if(!endPrice(line)&&endPrice(next)&&/regprice|cardsav/i.test(next)){
+      const name=clean(line);
+      const price=endPrice(next);
+      if(name.length>=2&&price){
+        items.push({name,price,unit:'unit',count:1,linkId:null,linkName:null});
+        used.add(i+1);
+      }
+      continue;
+    }
+
+    // ── REGULAR ITEM LINE ─────────────────────────────────────────────
+    const price=endPrice(line);
+    if(!price)continue;
+
+    const nameSection=stripFlags(line).replace(/\s*\$?\s*[\d,]+[.,]\d{1,2}\s*$/,'');
+
+    // Savemore/bundle @unit_price embedded in name section
+    const atM=nameSection.match(/@\s*\$?([\d.,]+)\s*$/);
+    const finalPrice=atM?Math.min(price,toPrice(atM[1])):price;
+    const namePart=atM?nameSection.replace(/@\s*\$?[\d.,]+\s*$/,''):nameSection;
+
+    const name=clean(namePart);
+    if(name.length<2||skipLine(name)||/^\d+$/.test(name))continue;
+
+    items.push({name,price:finalPrice,unit:'unit',count:1,linkId:null,linkName:null});
   }
   return items;
 }
