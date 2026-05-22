@@ -454,17 +454,10 @@ async function preprocessImage(dataUrl){
 }
 async function runOCR(src,onProg){
   const processed=await preprocessImage(src);
-  let worker;
-  try{
-    worker=await Tesseract.createWorker('eng',1,{
-      logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(Math.round(m.progress*100))}
-    });
-    await worker.setParameters({tessedit_pageseg_mode:'6'});
-    const {data:{text}}=await worker.recognize(processed);
-    return text;
-  }finally{
-    if(worker)worker.terminate().catch(()=>{});
-  }
+  const result=await Tesseract.recognize(processed,'eng',{
+    logger:m=>{if(m.status==='recognizing text'&&onProg)onProg(Math.round(m.progress*100))}
+  });
+  return result.data.text;
 }
 
 // ─── PARSERS ──────────────────────────────────────────────────────────────────
@@ -1117,7 +1110,7 @@ async function switchToReview(img){
     const fresh=parseReceipt(rawText).map(it=>({...it,...autoLink(it.name)}));
     scanItems=appendMode?[...scanItems,...fresh]:fresh;
     appendMode=false;
-  }catch(e){lastOCRText='OCR Error: '+e.message;scanItems=[]}
+  }catch(e){lastOCRText='OCR Error: '+(e?.message||String(e)||'unknown error');scanItems=[]}
   prog.style.display='none';
   renderScanItems();
 }
